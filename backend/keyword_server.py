@@ -1,196 +1,461 @@
-from flask import Flask, request, jsonify
-from konlpy.tag import Okt
+# backend/keyword_server.py
+# ------------------------------------------------------------
+# Monkey Flask Server (Port: 5001)
+# 역할:
+# 1) /split   : konlpy(Okt)로 동사 개수 체크 후, 필요 시 GPT로 의미 단위 분리
+# 2) /embed   : 임베딩 생성(OpenAI) - 프론트는 서버만 호출
+# 3) /interpret: 문장 1개 전통 해몽(OpenAI)
+# 4) /summary : 문장별 해몽들을 종합 요약(OpenAI)
+# ------------------------------------------------------------
+
 import os
-import requests
 import json
 import re
+import requests
+from typing import List, Tuple
+
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
-# ✅ .env 로드
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# konlpy는 Java/JVM 환경 필요 (이미 구성되어 있다고 가정)
+from konlpy.tag import Okt
+
+
+# =========================
+# 0) 기본 설정
+# =========================
 
 app = Flask(__name__)
+
+# backend/.env 읽기 (여기에 OPENAI_API_KEY만 넣는 것을 추천)
+# 예: backend/.env
+# OPENAI_API_KEY=sk-xxxx
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+
+# GPT/Embedding 모델 (원하시면 여기만 바꿔도 되게 상수로 고정)
+CHAT_MODEL = "gpt-3.5-turbo"
+EMBED_MODEL = "text-embedding-3-small"
+
 okt = Okt()
 
-def count_verbs(pos_tags):
-    return sum(1 for _, tag in pos_tags if tag == 'Verb')
-
-# ----------------------------
-# ✅ 1) 표준화(normalize) + 필터(filter)
-# ----------------------------
-
-# 해몽에서 제외하고 싶은 "메타/현실복귀/각성" 표현들(표준화 이후 매칭이 쉬움)
-META_EXCLUDE_PATTERNS = [
-    r"^꿈을\s*깨다$",
-    r"^잠에서\s*깨다$",
-    r"^깨어나다$",
-    r"^눈을\s*뜨다$",
-    r"^잠이\s*깨다$",
-    r"^꿈에서\s*나오다$",
-    r"^현실로\s*돌아오다$",
+# “해몽 대상에서 제외”할 메타 문장 블랙리스트(서버 하드 필터)
+# (필요하면 계속 추가)
+BLACKLIST_PHRASES = [
+    "꿈을 깨다",
+    "잠에서 깨다",
+    "눈을 뜨다",
+    "깨어나다",
+    "알람이 울리다",
+    "현실로 돌아오다",
 ]
 
-def normalize_sentence(s: str) -> str:
+# 분리 판단 기준: 동사 개수 >= 2 이면 GPT 분리
+VERB_SPLIT_THRESHOLD = 2
+
+
+# =========================
+# 1) 비용 계산 (최신 단가 기준)
+# =========================
+# GPT-3.5 Turbo: Input $0.50 / 1M, Output $1.50 / 1M
+# Embedding 3-small: $0.02 / 1M
+#
+# ※ 문서 기반 단가 (프로젝트/계정/지역에 따라 변동 가능)
+#    단가 변경되면 여기만 바꾸면 됨.
+GPT35_IN_PER_TOKEN = 0.50 / 1_000_000
+GPT35_OUT_PER_TOKEN = 1.50 / 1_000_000
+EMB_IN_PER_TOKEN = 0.02 / 1_000_000
+
+
+# =========================
+# 2) 공용 유틸
+# =========================
+
+def require_key():
+    """OpenAI 키가 없으면 서버에서 OpenAI 호출이 불가능하므로 500 반환"""
+    if not OPENAI_API_KEY:
+        return jsonify({"error": "OPENAI_API_KEY is missing on server (backend/.env)"}), 500
+    return None
+
+
+def normalize_sentence(text: str) -> str:
     """
-    문장을 캐시 친화적으로 정규화합니다.
-    - 따옴표/괄호/특수문자/마침표 제거
-    - 앞부분 주어(나는/내가/제가/그는/그녀는 등) 제거
-    - '...하는 꿈', '...의 꿈' 꼬리 제거
-    - 공백 정리
+    문장 정규화(간단 버전)
+    - 앞뒤 공백 제거
+    - 연속 공백 1칸으로
+    - 쓸데없는 따옴표/특수문자 일부 제거
     """
-    if not s:
-        return ""
+    t = (text or "").strip()
+    t = re.sub(r"\s+", " ", t)
 
-    s = s.strip()
+    # 너무 과한 정규화는 의미를 훼손할 수 있어서 "최소한"만 함
+    t = t.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    t = t.strip(" \"'")
 
-    # 1) 따옴표/괄호/불필요 구두점 제거 (너무 과하면 의미 손상될 수 있어 최소한만)
-    s = s.replace('"', '').replace("'", "")
-    s = re.sub(r"[·•]+", " ", s)
-    s = re.sub(r"[.!?…]+$", "", s)  # 문장 끝 마침표류 제거
-    s = re.sub(r"\s+", " ", s).strip()
+    return t
 
-    # 2) 흔한 주어 제거(문장 앞부분에만 적용)
-    #    - '나'는 앱 내부에서 붙는 경우가 많고 캐시 매칭을 방해하므로 제거
-    s = re.sub(r"^(나는|내가|제가|나는요|내가요|저는|난|내|우리|우린|그는|그가|그녀는|그녀가)\s+", "", s).strip()
 
-    # 3) 꿈 메타 꼬리 제거: '...하는 꿈', '...한 꿈', '...의 꿈'
-    #    - 예) '사과를 먹는 꿈' -> '사과를 먹는'
-    #    - 여기서 완벽히 '먹다'로 바꾸려면 GPT/형태소 기반이 더 필요하지만
-    #      꼬리 제거만 해도 캐시 적중률이 크게 오릅니다.
-    s = re.sub(r"\s*(을|를)?\s*먹는\s*꿈$", " 사과를 먹다", s) if s == "사과를 먹는 꿈" else s  # (예시 특례는 제거 가능)
-    s = re.sub(r"\s*(하는|한)\s*꿈$", "", s).strip()
-    s = re.sub(r"\s*의\s*꿈$", "", s).strip()
-
-    # 4) 공백 재정리
-    s = re.sub(r"\s+", " ", s).strip()
-
-    return s
-
-def is_interpretation_target(s: str) -> bool:
+def is_interpretation_target(text: str) -> bool:
     """
-    해몽 대상 문장인지 판별합니다.
-    - normalize된 문장을 기준으로 메타 패턴을 제거합니다.
+    해몽 대상 문장인지 판단
+    - 너무 짧으면 제외
+    - 블랙리스트 문구가 들어가면 제외
     """
-    if not s:
+    t = normalize_sentence(text)
+    if len(t) < 3:
         return False
 
-    ns = normalize_sentence(s)
-
-    # 너무 짧으면(의미 없는 토막) 제외
-    if len(ns) < 2:
-        return False
-
-    for pat in META_EXCLUDE_PATTERNS:
-        if re.match(pat, ns):
+    for phrase in BLACKLIST_PHRASES:
+        if phrase in t:
             return False
 
     return True
 
-# ----------------------------
-# ✅ 2) GPT 문장 분리
-# ----------------------------
-def gpt_split(text: str):
-    print("📡 GPT 호출 준비", flush=True)
-    url = 'https://api.openai.com/v1/chat/completions'
+
+def count_verbs_korean(text: str) -> int:
+    """
+    Okt 품사 태깅으로 '동사(Verb)' 개수 카운트
+    - Okt.pos() 결과에서 품사가 'Verb' 인 토큰 수
+    """
+    t = normalize_sentence(text)
+    if not t:
+        return 0
+
+    # norm/stem을 켜면 표제어화(원형화)에 유리할 때가 있음
+    tokens = okt.pos(t, norm=True, stem=True)
+    verb_count = sum(1 for _, pos in tokens if pos == "Verb")
+    return verb_count
+
+
+def unique_keep_order(items: List[str]) -> List[str]:
+    """중복 제거 + 순서 유지"""
+    seen = set()
+    out = []
+    for x in items:
+        if x in seen:
+            continue
+        seen.add(x)
+        out.append(x)
+    return out
+
+
+# =========================
+# 3) OpenAI 호출 래퍼
+# =========================
+
+def openai_chat(messages: list, model: str = CHAT_MODEL, temperature: float = 0.7) -> Tuple[str, int, int, float]:
+    """
+    OpenAI Chat Completions 호출
+    반환: (result_text, input_tokens, output_tokens, total_cost_usd)
+    """
+    url = "https://api.openai.com/v1/chat/completions"
     headers = {
-        'Authorization': f'Bearer {OPENAI_API_KEY}',
-        'Content-Type': 'application/json'
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
     }
 
-    # ✅ "메타 문장(꿈을 깨다 등)은 제외"를 프롬프트에 강제
-    system_prompt = (
-        "당신은 꿈 내용을 '해몽 대상 사건' 단위로 분리하는 전문가입니다.\n"
-        "입력된 꿈의 문장에서 다음 규칙을 지키세요:\n\n"
-        "1) 동사를 중심으로 사건 단위로 분리합니다.\n"
-        "2) 동사 결합(예: '보고 웃다', '가다 멈추다')은 하나의 사건으로 취급합니다.\n"
-        "3) 주어가 생략된 경우 문맥상 자연스러운 주어를 보완하되, 주어가 '나'라면 주어를 출력하지 않습니다.\n"
-        "4) 의미 없는 감탄사/의성어/의태어는 제외합니다.\n"
-        "5) 결과는 가능한 표준형(예: '먹었어요'→'먹다')으로 정리합니다.\n"
-        "6) ★중요: '꿈을 깨다/잠에서 깨다/눈을 뜨다/현실로 돌아오다' 같은 '현실 복귀/각성' 문장은 해몽 대상이 아니므로 결과에서 제외합니다.\n\n"
-        "출력은 반드시 JSON 배열만 반환하세요. 예: [\"사과를 먹다\", \"뱀에게 물리다\"]"
-    )
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    data = r.json()
 
-    body = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text}
-        ],
-        "temperature": 0.3
+    text = (data.get("choices", [{}])[0].get("message", {}) or {}).get("content", "").strip()
+    usage = data.get("usage", {}) or {}
+    in_tok = int(usage.get("prompt_tokens", 0) or 0)
+    out_tok = int(usage.get("completion_tokens", 0) or 0)
+
+    total_cost = (in_tok * GPT35_IN_PER_TOKEN) + (out_tok * GPT35_OUT_PER_TOKEN)
+    return text, in_tok, out_tok, total_cost
+
+
+def openai_embed(text: str, model: str = EMBED_MODEL) -> Tuple[List[float], int, float]:
+    """
+    OpenAI Embeddings 호출
+    반환: (embedding_vector, input_tokens, total_cost_usd)
+    """
+    url = "https://api.openai.com/v1/embeddings"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "input": text,
     }
 
-    # ✅ timeout으로 서버 무한 대기 방지
-    response = requests.post(url, headers=headers, json=body, timeout=20)
-    response.raise_for_status()
-    data = response.json()
-    return data['choices'][0]['message']['content']
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    data = r.json()
 
-# ----------------------------
-# ✅ 3) API
-# ----------------------------
-@app.route('/split', methods=['POST'])
-def split_sentence():
-    data = request.get_json() or {}
-    text = (data.get("text", "") or "").strip()
+    embedding = (((data.get("data") or [])[0] or {}).get("embedding")) or []
+    usage = data.get("usage") or {}
+    in_tok = int(usage.get("prompt_tokens", 0) or 0)
+
+    total_cost = in_tok * EMB_IN_PER_TOKEN
+    return embedding, in_tok, total_cost
+
+
+# =========================
+# 4) GPT 문장 분리 (/split에서 사용)
+# =========================
+
+def gpt_split_to_json_array(text: str) -> List[str]:
+    """
+    GPT에게 '의미 단위 문장 분리'를 요청하고,
+    반드시 JSON 배열로만 반환받아 파싱한다.
+
+    실패하면 fallback으로 [원문] 반환
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "너는 한국어 문장을 '꿈의 사건(행동) 단위'로 분리하는 도우미다.\n"
+                "절대 해몽하지 말고, 오직 문장 분리만 하라.\n"
+                "출력은 반드시 JSON 배열만 출력하라. (예: [\"...\", \"...\"])\n"
+                "추가 설명/텍스트/코드블록 금지."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                "다음 꿈 내용을 사건 단위로 분리해줘.\n"
+                "- 표준어로 다듬되 의미는 유지\n"
+                "- 고유명사는 가능하면 상위 개념으로(예: '민섭'→'지인')\n"
+                "- 각 항목은 짧고 명확한 한 문장\n"
+                "- 결과는 JSON 배열만\n\n"
+                f"꿈 내용: {text}"
+            )
+        }
+    ]
+
+    try:
+        raw, _, _, _ = openai_chat(messages, temperature=0.2)
+
+        # GPT가 가끔 ```json ...``` 으로 감싸는 경우 대비
+        cleaned = raw.strip()
+        cleaned = re.sub(r"^```json\s*", "", cleaned)
+        cleaned = re.sub(r"^```\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+        arr = json.loads(cleaned)
+
+        if not isinstance(arr, list):
+            return [text]
+
+        # 문자열만 남기고 정규화
+        out = []
+        for item in arr:
+            if isinstance(item, str):
+                out.append(normalize_sentence(item))
+        return out if out else [text]
+
+    except Exception:
+        return [text]
+
+
+# =========================
+# 5) API: /split
+# =========================
+
+@app.post("/split")
+def split():
+    """
+    입력: { "text": "..." }
+    출력: {
+      "sentences": [ ... ],
+      "usedGPT": true/false,
+      "removed": [ ... ]   # 필터링으로 제거된 문장들(디버그용)
+    }
+    """
+    body = request.get_json(silent=True) or {}
+    text = normalize_sentence(body.get("text") or "")
 
     if not text:
-        return jsonify({"sentences": [], "usedGPT": False, "removed": []})
+        return jsonify({"error": "text is required"}), 400
 
-    # 1) 형태소 분석으로 동사 개수 체크
-    pos_tags = okt.pos(text, stem=True)
-    verb_count = count_verbs(pos_tags)
+    # 1) 동사 개수로 GPT 분리 여부 결정
+    verb_count = count_verbs_korean(text)
+    used_gpt = False
 
-    # 2) verb 1개 이하: 그대로 1문장 처리 (단, normalize/filter는 적용)
-    if verb_count <= 1:
-        raw_list = [text]
-        removed = []
-        final_list = []
+    # 2) 분리 수행
+    if verb_count >= VERB_SPLIT_THRESHOLD:
+        # GPT 분리는 OpenAI 키가 필요함
+        # 키가 없으면 fallback(원문 그대로)
+        if OPENAI_API_KEY:
+            sentences = gpt_split_to_json_array(text)
+            used_gpt = True
+        else:
+            sentences = [text]
+            used_gpt = False
+    else:
+        sentences = [text]
 
-        for s in raw_list:
-            ns = normalize_sentence(s)
-            if is_interpretation_target(ns):
-                final_list.append(ns)
-            else:
-                removed.append(ns)
+    # 3) 정규화 + 해몽 대상 필터(메타문장 제거)
+    removed = []
+    filtered = []
+    for s in sentences:
+        ns = normalize_sentence(s)
+        if not ns:
+            continue
+        if is_interpretation_target(ns):
+            filtered.append(ns)
+        else:
+            removed.append(ns)
 
-        return jsonify({"sentences": final_list, "usedGPT": False, "removed": removed})
+    # 4) 중복 제거
+    filtered = unique_keep_order(filtered)
 
-    # 3) verb 2개 이상: GPT로 분리 후 normalize/filter
+    return jsonify({
+        "sentences": filtered,
+        "usedGPT": used_gpt,
+        "removed": removed
+    })
+
+
+# =========================
+# 6) API: /embed
+# =========================
+
+@app.post("/embed")
+def embed():
+    """
+    입력: { "text": "..." }
+    출력: { "embedding": [...], "inputToken": n, "totalCostUsd": x }
+    """
+    chk = require_key()
+    if chk:
+        return chk
+
+    body = request.get_json(silent=True) or {}
+    text = normalize_sentence(body.get("text") or "")
+
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
     try:
-        gpt_result = gpt_split(text)
-
-        # ✅ JSON 배열로 파싱 시도
-        try:
-            raw_sentences = json.loads(gpt_result)
-        except json.JSONDecodeError:
-            # fallback: 줄바꿈/불릿 처리
-            raw_sentences = [line.strip("-• ").strip() for line in gpt_result.splitlines() if line.strip()]
-
-        removed = []
-        final_sentences = []
-
-        # normalize + filter
-        for s in raw_sentences:
-            ns = normalize_sentence(s)
-            if is_interpretation_target(ns):
-                final_sentences.append(ns)
-            else:
-                removed.append(ns)
-
-        # 중복 제거(순서 유지)
-        seen = set()
-        unique_final = []
-        for s in final_sentences:
-            if s not in seen:
-                seen.add(s)
-                unique_final.append(s)
-
-        return jsonify({"sentences": unique_final, "usedGPT": True, "removed": removed})
-
+        embedding, input_tok, total_cost = openai_embed(text, model=EMBED_MODEL)
+        return jsonify({
+            "embedding": embedding,
+            "inputToken": input_tok,
+            "totalCostUsd": total_cost
+        })
     except Exception as e:
-        print("❌ split 오류:", e, flush=True)
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+
+# =========================
+# 7) API: /interpret
+# =========================
+
+@app.post("/interpret")
+def interpret():
+    """
+    입력: { "text": "..." }
+    출력: { "result": "...", "inputToken": n, "outputToken": n, "totalCostUsd": x }
+    """
+    chk = require_key()
+    if chk:
+        return chk
+
+    body = request.get_json(silent=True) or {}
+    text = normalize_sentence(body.get("text") or "")
+
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "당신은 전통 한국 꿈 해몽 전문가입니다. "
+                "심리학적 해석은 하지 말고 전통 해몽 방식만 사용하세요."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f'꿈 내용: "{text}"\n전통 해몽 방식으로 해석해줘.'
+        }
+    ]
+
+    try:
+        result, in_tok, out_tok, cost = openai_chat(messages, model=CHAT_MODEL, temperature=0.7)
+        return jsonify({
+            "result": result or "해석 실패",
+            "inputToken": in_tok,
+            "outputToken": out_tok,
+            "totalCostUsd": cost
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =========================
+# 8) API: /summary
+# =========================
+
+@app.post("/summary")
+def summary():
+    """
+    입력: { "interpretations": ["문장별 해몽1", "문장별 해몽2", ...] }
+    출력: { "result": "...", "inputToken": n, "outputToken": n, "totalCostUsd": x }
+    """
+    chk = require_key()
+    if chk:
+        return chk
+
+    body = request.get_json(silent=True) or {}
+    interpretations = body.get("interpretations") or []
+
+    if not isinstance(interpretations, list) or len(interpretations) == 0:
+        return jsonify({"error": "interpretations(list) is required"}), 400
+
+    # 리스트를 보기 좋게 bullet로 연결
+    joined = "\n- " + "\n- ".join([str(x) for x in interpretations])
+
+    # ✅ 요약은 interpret() 재사용 금지! (프롬프트가 깨지는 문제 방지)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "당신은 전통 한국 꿈 해몽 전문가입니다. "
+                "심리학적 해석은 하지 말고 전통 해몽 방식만 사용하세요."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "다음은 꿈의 '문장별 해몽 결과' 목록입니다.\n"
+                "이것을 종합하여 최종 해몽을 작성하세요.\n\n"
+                "출력 형식(정확히 제목 2개만):\n"
+                "[종합 해몽 결과]\n"
+                "[조언]\n\n"
+                f"### 문장별 해몽 결과:{joined}"
+            ),
+        },
+    ]
+
+    try:
+        result, in_tok, out_tok, cost = openai_chat(messages, model=CHAT_MODEL, temperature=0.6)
+        return jsonify({
+            "result": result or "요약 실패",
+            "inputToken": in_tok,
+            "outputToken": out_tok,
+            "totalCostUsd": cost
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =========================
+# 9) 서버 실행
+# =========================
+if __name__ == "__main__":
+    # 포트는 5001 고정 (합의)
+    # host=0.0.0.0 로 해야 폰/에뮬레이터에서 PC로 접근 가능
+    app.run(host="0.0.0.0", port=5001, debug=True)

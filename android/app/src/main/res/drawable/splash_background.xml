@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 배경색 -->
+    <item android:drawable="@android:color/black" />
+
+    <!-- 중앙 로고/텍스트는 지금은 없음 -->
+    <!-- (RN 진입 후 화면에서 처리 예정) -->
+
+</layer-list>

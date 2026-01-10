@@ -79,6 +79,9 @@ android {
 
     namespace "com.monkey"
     defaultConfig {
+          ndk {
+            abiFilters "arm64-v8a"
+        }
         applicationId "com.monkey"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion

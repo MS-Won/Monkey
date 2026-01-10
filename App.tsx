@@ -3,11 +3,12 @@ import Navigator from './frontend/navigator';
 import { initDB } from './frontend/src/database/initDB';
 
 const App = () => {
-  useEffect(() => {  
-    //dropCacheTable(); // ⚠️ 단 한 번 실행 후 주석처리할 것
+  useEffect(() => {
+    // ✅ DB 초기화는 앱 시작 시 1회
     initDB();
   }, []);
 
+  // ✅ 화면 흐름은 navigator가 담당 (Splash → Profile → Input → Result)
   return <Navigator />;
 };
 
