@@ -12,5 +12,5 @@
       "@env": ["./frontend/env.d.ts"]
     }
   },
-  "include": ["frontend/**/*"]
+  "include": ["frontend/**/*", "frontend/src"]
 }

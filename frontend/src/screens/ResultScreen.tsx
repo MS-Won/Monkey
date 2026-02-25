@@ -17,8 +17,11 @@ import { getGPTSummary } from '../logic/gpt';
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 
-// ✅ 추가: 로딩 화면 컴포넌트
+// ✅ 로딩 화면 컴포넌트
 import LoadingOverlay from '../components/LoadingOverlay';
+
+// ✅ (추가) Profile Context(프롬프트용 한 줄)
+import { buildDisplayName, buildProfileContextForPrompt } from '../advice/profileContext';
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;
 
@@ -58,9 +61,26 @@ function splitSummaryAndAdvice(text: string) {
 
 const ResultScreen = () => {
   const route = useRoute<ResultScreenRouteProp>();
-  const { sentenceList, dreamText, usedGPTInSplit, personName } = route.params;
 
-  // ✅ 추가: 로딩 상태 (모든 결과 준비 전까지는 LoadingOverlay만 보여줌)
+  // ✅ 기존 params 유지
+  // ✅ 프로필 관련 값은 "있을 수도/없을 수도" 있으니 안전하게 optional 처리
+  const {
+    sentenceList,
+    dreamText,
+    usedGPTInSplit,
+    personName,
+
+    // (선택) 프로필 탭을 나중에 연결하면 여기로 넘길 수 있음
+    // 현재 없으면 undefined로 들어와도 문제 없음
+    // @ts-ignore
+    gender,
+    // @ts-ignore
+    ageGroup,
+    // @ts-ignore
+    jobGroup,
+  } = route.params as any;
+
+  // ✅ 로딩 상태
   const [loading, setLoading] = useState(true);
 
   // ✅ 개발자용 영역 접기/펼치기
@@ -77,18 +97,23 @@ const ResultScreen = () => {
   const [summaryMeta, setSummaryMeta] = useState<any>(null);
 
   // ✅ 이름 표시(너무 과한 반복 방지)
-  const displayName = useMemo(() => {
-    const name = (personName ?? '').trim();
-    if (!name) return '';
-    return name.endsWith('님') ? name : `${name}님`;
-  }, [personName]);
+  const displayName = useMemo(() => buildDisplayName(personName), [personName]);
+
+  // ✅ 프로필 컨텍스트 한 줄(없으면 빈 문자열)
+  const contextLine = useMemo(() => {
+    return buildProfileContextForPrompt({
+      // name은 컨텍스트에 굳이 넣을 필요 없어서 제외(원하면 넣어도 됨)
+      gender,
+      ageGroup,
+      jobGroup,
+    });
+  }, [gender, ageGroup, jobGroup]);
 
   // ✅ 문장 수가 1개인지 여부
   const isSingleSentence = sentenceList.length <= 1;
 
   useEffect(() => {
     const analyzeAll = async () => {
-      // ✅ 시작 시 로딩 ON (혹시 재진입/재실행 대비)
       setLoading(true);
 
       try {
@@ -101,13 +126,14 @@ const ResultScreen = () => {
         }
         setResults(temp);
 
-        // 2) 종합 해몽 + 조언
+        // 2) 종합 해몽 + ##조언 (✅ 원래 방식: GPT가 둘 다 생성)
         const parts = temp.map((r, idx) => {
           return `- 문장 ${idx + 1}: ${sentenceList[idx]}\n  해몽: ${r.result}`;
         });
 
         const structuredInput = [
           displayName ? `사용자 이름: ${displayName}` : '',
+          contextLine ? contextLine : '', // ✅ 프로필이 없으면 자동으로 빠짐
           `꿈 원문: ${dreamText}`,
           '',
           '문장별 해몽:',
@@ -116,7 +142,10 @@ const ResultScreen = () => {
           '요청:',
           '- 위 문장별 해몽을 단순 나열하지 말고, 하나의 이야기처럼 자연스럽게 엮어주세요.',
           '- 중복 표현은 합치고, 핵심 테마 2~3개로 묶어서 정리해주세요.',
-          '- 마지막에 "## 조언" 섹션을 만들어, 사용자가 기억해야 할 행동/주의점 3개 이내로 제시해주세요.',
+          // ✅ 변경 포인트: 조언 3개는 유지하되 "프로필 컨텍스트를 참고"만 추가
+          '- 마지막에 "## 조언" 섹션을 만들고, 사용자가 기억해야 할 행동/주의점을 3개 이내로 제시해주세요.',
+          '- 단, 위의 "사용자 맥락(참고용)"이 제공된 경우 그 정보를 참고하여 조언의 표현과 강조점을 조정해주세요.',
+          '- 사용자 맥락이 비어있다면 일반적인 조언으로 작성해주세요.',
         ]
           .filter(Boolean)
           .join('\n');
@@ -135,7 +164,6 @@ const ResultScreen = () => {
         setSummary('해석 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
         setAdvice('네트워크 상태를 확인한 뒤 다시 실행해 보세요.');
       } finally {
-        // ✅ 어떤 경우든 마지막에 로딩 OFF → 결과 화면 렌더 가능
         setLoading(false);
       }
     };
@@ -165,7 +193,7 @@ const ResultScreen = () => {
     setDevOpen((v) => !v);
   };
 
-  // ✅ 추가: 결과 준비 전에는 로딩 화면만 표시
+  // ✅ 결과 준비 전에는 로딩 화면만 표시
   if (loading) {
     return <LoadingOverlay />;
   }
@@ -175,9 +203,7 @@ const ResultScreen = () => {
       <Text style={Typography.h2}>해몽 결과</Text>
 
       <Text style={[Typography.muted, styles.topHint]}>
-        {displayName
-          ? `${displayName}의 꿈을 바탕으로 정리했습니다.`
-          : '꿈을 바탕으로 정리했습니다.'}
+        {displayName ? `${displayName}의 꿈을 바탕으로 정리했습니다.` : '꿈을 바탕으로 정리했습니다.'}
       </Text>
 
       {/* 1) 당신의 꿈 */}
@@ -206,11 +232,7 @@ const ResultScreen = () => {
 
         {summaryMeta && typeof summaryMeta.totalCostUsd === 'number' && (
           <View style={[styles.metaRow, { marginTop: 10 }]}>
-            <Chip
-              text={`SUMMARY: ${
-                summaryMeta.result !== '해석 실패' ? 'GPT' : 'NO-GPT'
-              }`}
-            />
+            <Chip text={`SUMMARY: ${summaryMeta.result !== '해석 실패' ? 'GPT' : 'NO-GPT'}`} />
             <Chip text={getCostInfo(summaryMeta.totalCostUsd)} />
           </View>
         )}
@@ -242,7 +264,7 @@ const ResultScreen = () => {
 
             <Card title="문장 분리 결과(DEV)">
               <Text style={styles.bodyText}>
-                {sentenceList.map((s, idx) => `${idx + 1}. ${s}`).join('\n')}
+                {sentenceList.map((s: string, idx: number) => `${idx + 1}. ${s}`).join('\n')}
               </Text>
 
               <View style={styles.metaRow}>
@@ -278,6 +300,13 @@ const ResultScreen = () => {
                   {idx !== results.length - 1 ? <Divider /> : null}
                 </View>
               ))}
+            </Card>
+
+            {/* ✅ (추가) 컨텍스트가 실제로 들어갔는지 DEV에서 확인 가능 */}
+            <Card title="Profile Context(DEV)">
+              <Text style={styles.bodyText}>
+                {contextLine ? contextLine : '(프로필 정보 없음)'}
+              </Text>
             </Card>
           </View>
         )}
