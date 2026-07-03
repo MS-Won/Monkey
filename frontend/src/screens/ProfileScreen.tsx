@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,37 +10,30 @@ import {
   ScrollView,
   LayoutAnimation,
   UIManager,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigator';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RootStackParamList } from '../../navigator';
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 
 import type { Gender, AgeGroup, JobGroup } from '../storage/userProfile';
 import { saveUserProfile } from '../storage/userProfile';
 
-// ✅ gorhom bottom-sheet (Modal 방식)
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-} from '@gorhom/bottom-sheet';
-
-// ✅ 안드로이드에서 LayoutAnimation 활성화
+// ✅ 안드로이드에서 LayoutAnimation 사용 가능하도록 활성화
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type NavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'OnboardingProfile'
->;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OnboardingProfile'>;
 
+// ✅ 현재 어떤 선택창을 열지 구분하는 타입
 type OpenSheet = 'gender' | 'age' | 'job' | null;
 
-// ✅ 공용 아이템 타입(기존 SelectItem 역할)
+// ✅ 공용 선택 아이템 타입
 type SelectItem<T extends string> = {
   key: T;
   label: string;
@@ -49,31 +42,31 @@ type SelectItem<T extends string> = {
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
 
-  // ✅ 입력값들
+  // ✅ 사용자 입력 상태
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
   const [jobGroup, setJobGroup] = useState<JobGroup | null>(null);
 
-  // ✅ 어떤 바텀시트를 열지
+  // ✅ 어떤 선택창이 열려 있는지
   const [openSheet, setOpenSheet] = useState<OpenSheet>(null);
 
-  // ✅ BottomSheetModal ref
-  const sheetRef = useRef<BottomSheetModal>(null);
+  // ✅ 선택창 실제 표시 여부
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // ✅ 유효성
+  // ✅ 입력 완료 여부 계산
   const nameOk = useMemo(() => name.trim().length >= 1, [name]);
   const genderOk = useMemo(() => gender !== null, [gender]);
   const ageOk = useMemo(() => ageGroup !== null, [ageGroup]);
   const jobOk = useMemo(() => jobGroup !== null, [jobGroup]);
 
-  // ✅ “아래로 누적 공개” 조건
+  // ✅ Toss 스타일 누적 공개 조건
   const showGender = nameOk;
   const showAge = nameOk && genderOk;
   const showJob = nameOk && genderOk && ageOk;
   const canFinish = nameOk && genderOk && ageOk && jobOk;
 
-  // ✅ 선택 목록(대분류)
+  // ✅ 선택 목록
   const genderItems: SelectItem<Gender>[] = [
     { key: 'MALE', label: '남성' },
     { key: 'FEMALE', label: '여성' },
@@ -99,142 +92,159 @@ export default function ProfileScreen() {
     { key: 'OTHER', label: '기타' },
   ];
 
-  // ✅ 작은 애니메이션(섹션이 “밑으로 추가되는 느낌”)
+  // ✅ 카드가 부드럽게 나타나도록 하는 애니메이션
   const animate = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
-  const open = (k: OpenSheet) => {
-    animate();
-    setOpenSheet(k);
+  // ✅ 선택값을 한글 라벨로 변환
+  const getLabel = <T extends string>(items: SelectItem<T>[], value: T | null) => {
+    if (!value) return '';
+    return items.find((item) => item.key === value)?.label ?? '';
   };
 
-  const close = () => {
+  // ✅ 선택창 열기
+  const openPicker = (type: OpenSheet) => {
+    if (!type) return;
+
     animate();
+    setOpenSheet(type);
+    setModalVisible(true);
+  };
+
+  // ✅ 선택창 닫기
+  const closePicker = () => {
+    setModalVisible(false);
     setOpenSheet(null);
-    // ✅ 모달 닫기
-    sheetRef.current?.dismiss();
   };
 
-  // ✅ openSheet가 바뀌면 모달을 자동으로 열어준다 (핵심)
-  useEffect(() => {
-    if (openSheet) {
-      // setState 직후 렌더 타이밍 이슈 방지용으로 next tick에서 present
-      requestAnimationFrame(() => {
-        sheetRef.current?.present();
-      });
-    }
-  }, [openSheet]);
-
-  // ✅ 완료 버튼
-  const finish = async () => {
-    if (!canFinish || !gender || !ageGroup || !jobGroup) return;
-
-    await saveUserProfile({
-      name: name.trim(),
-      gender,
-      ageGroup,
-      jobGroup,
-    });
-
-    navigation.replace('Main');
-  };
-
-  // ✅ 현재 선택값 라벨로 보여주기
-  const getLabel = <T extends string>(items: SelectItem<T>[], v: T | null) => {
-    if (!v) return '';
-    return items.find((x) => x.key === v)?.label ?? '';
-  };
-
-  // ✅ 현재 열려있는 시트에 따라 title/items/currentValue를 결정
-  const sheetTitle = useMemo(() => {
+  // ✅ 현재 열려 있는 선택창 제목
+  const modalTitle = useMemo(() => {
     if (openSheet === 'gender') return '성별 선택';
     if (openSheet === 'age') return '나이대 선택';
     if (openSheet === 'job') return '직업 선택';
     return '';
   }, [openSheet]);
 
-  const sheetItems = useMemo(() => {
+  // ✅ 현재 열려 있는 선택창 목록
+  const modalItems = useMemo(() => {
     if (openSheet === 'gender') return genderItems;
     if (openSheet === 'age') return ageItems;
     if (openSheet === 'job') return jobItems;
     return [];
   }, [openSheet]);
 
-  const sheetValue = useMemo(() => {
+  // ✅ 현재 선택된 값
+  const selectedValue = useMemo(() => {
     if (openSheet === 'gender') return gender;
     if (openSheet === 'age') return ageGroup;
     if (openSheet === 'job') return jobGroup;
     return null;
   }, [openSheet, gender, ageGroup, jobGroup]);
 
-  // ✅ 선택 처리(현재 openSheet에 맞춰 state 업데이트)
+  // ✅ 선택 처리
   const onSelectItem = (key: string) => {
     animate();
 
+    // 1) 성별 선택
     if (openSheet === 'gender') {
       setGender(key as Gender);
-      // 성별 바꾸면 아래 값들은 UX상 초기화가 자연스러움(원하면 제거 가능)
+
+      // ✅ 상위 값 변경 시 하위 값 초기화
       setAgeGroup(null);
       setJobGroup(null);
-    } else if (openSheet === 'age') {
-      setAgeGroup(key as AgeGroup);
-      setJobGroup(null);
-    } else if (openSheet === 'job') {
-      setJobGroup(key as JobGroup);
+
+      closePicker();
+      return;
     }
 
-    close();
+    // 2) 나이대 선택
+    if (openSheet === 'age') {
+      setAgeGroup(key as AgeGroup);
+
+      // ✅ 나이 바뀌면 직업 다시 선택하게 초기화
+      setJobGroup(null);
+
+      closePicker();
+      return;
+    }
+
+    // 3) 직업 선택
+    if (openSheet === 'job') {
+      setJobGroup(key as JobGroup);
+      closePicker();
+      return;
+    }
+  };
+
+  // ✅ 저장 버튼
+  const finish = async () => {
+    if (!canFinish || !gender || !ageGroup || !jobGroup) return;
+
+    try {
+      await saveUserProfile({
+        name: name.trim(),
+        gender,
+        ageGroup,
+        jobGroup,
+      });
+
+      navigation.replace('Main');
+    } catch (error) {
+      console.error('프로필 저장 실패:', error);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          style={styles.scroll}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ✅ 상단 */}
+          {/* ✅ 상단 설명 */}
           <View style={styles.header}>
             <Text style={Typography.h2}>프로필</Text>
-            <Text style={[Typography.muted, { marginTop: 6 }]}>
-              입력한 정보는 “조언” 표현을 조정하는 참고용입니다.
+            <Text style={[Typography.muted, styles.headerDesc]}>
+              입력한 정보는 “조언” 표현을 자연스럽게 조정하는 참고용입니다.
             </Text>
           </View>
 
-          {/* 1) 이름 */}
+          {/* 1. 이름 */}
           <View style={styles.card}>
             <Text style={styles.label}>이름</Text>
 
             <TextInput
               value={name}
-              onChangeText={(v) => {
-                setName(v);
+              onChangeText={(value) => {
+                setName(value);
 
-                // ✅ 이름을 지우면 아래 선택값 초기화
-                if (v.trim().length === 0) {
+                // ✅ 이름을 다시 지우면 아래 선택들도 초기화
+                if (value.trim().length === 0) {
                   animate();
                   setGender(null);
                   setAgeGroup(null);
                   setJobGroup(null);
                 }
               }}
-              placeholder=""
+              placeholder="이름을 입력해주세요"
               placeholderTextColor={Colors.textMuted}
               style={styles.input}
               returnKeyType="done"
             />
           </View>
 
-          {/* 2) 성별 */}
+          {/* 2. 성별 */}
           {showGender && (
             <View style={styles.card}>
               <Text style={styles.label}>성별</Text>
+
               <Pressable
-                onPress={() => open('gender')}
+                onPress={() => openPicker('gender')}
                 style={({ pressed }) => [styles.field, pressed && styles.pressed]}
               >
                 <Text style={styles.fieldText}>
@@ -244,12 +254,13 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* 3) 나이대 */}
+          {/* 3. 나이대 */}
           {showAge && (
             <View style={styles.card}>
               <Text style={styles.label}>나이대</Text>
+
               <Pressable
-                onPress={() => open('age')}
+                onPress={() => openPicker('age')}
                 style={({ pressed }) => [styles.field, pressed && styles.pressed]}
               >
                 <Text style={styles.fieldText}>
@@ -259,12 +270,13 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* 4) 직업 */}
+          {/* 4. 직업 */}
           {showJob && (
             <View style={styles.card}>
-              <Text style={styles.label}>직업(대분류)</Text>
+              <Text style={styles.label}>직업</Text>
+
               <Pressable
-                onPress={() => open('job')}
+                onPress={() => openPicker('job')}
                 style={({ pressed }) => [styles.field, pressed && styles.pressed]}
               >
                 <Text style={styles.fieldText}>
@@ -274,7 +286,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* 완료 버튼 */}
+          {/* 저장 버튼 */}
           <Pressable
             onPress={finish}
             disabled={!canFinish}
@@ -288,57 +300,44 @@ export default function ProfileScreen() {
           </Pressable>
 
           <Text style={[Typography.muted, styles.footer]}>
-            * 나이/직업은 선택 정보이며, 프로필 미작성이어도 해몽은 정상 작동합니다.
+            * 입력한 정보는 해몽의 핵심 내용이 아니라, 조언 표현을 조금 더 자연스럽게 조정하는 데 사용됩니다.
           </Text>
         </ScrollView>
 
-        {/* ---------------------------
-            BottomSheetModal (단 하나)
-            - openSheet가 설정되면 자동 present()
-        --------------------------- */}
-        <BottomSheetModal
-          ref={sheetRef}
-          snapPoints={['45%']}
-          enablePanDownToClose
-          onDismiss={() => {
-            // ✅ 사용자가 아래로 내려 닫았을 때도 상태 정리
-            if (openSheet !== null) {
-              animate();
-              setOpenSheet(null);
-            }
-          }}
-          backdropComponent={(props) => (
-            <BottomSheetBackdrop
-              {...props}
-              appearsOnIndex={0}
-              disappearsOnIndex={-1}
-              pressBehavior="close"
-            />
-          )}
+        {/* ✅ 아래에서 올라오는 선택 모달 */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={closePicker}
         >
-          <View style={styles.sheetContainer}>
-            <Text style={styles.sheetTitle}>{sheetTitle}</Text>
+          {/* 바깥 어두운 배경 */}
+          <Pressable style={styles.modalOverlay} onPress={closePicker}>
+            {/* 내부 선택창 */}
+            <Pressable style={styles.modalCard} onPress={() => {}}>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
 
-            {sheetItems.map((it) => (
-              <Pressable
-                key={it.key}
-                onPress={() => onSelectItem(it.key)}
-                style={({ pressed }) => [
-                  styles.sheetItem,
-                  pressed && styles.sheetItemPressed,
-                ]}
-              >
-                <Text style={styles.sheetItemText}>
-                  {it.label} {sheetValue === it.key ? '✓' : ''}
-                </Text>
+              {modalItems.map((item) => (
+                <Pressable
+                  key={item.key}
+                  onPress={() => onSelectItem(item.key)}
+                  style={({ pressed }) => [
+                    styles.modalItem,
+                    pressed && styles.modalItemPressed,
+                  ]}
+                >
+                  <Text style={styles.modalItemText}>
+                    {item.label} {selectedValue === item.key ? '✓' : ''}
+                  </Text>
+                </Pressable>
+              ))}
+
+              <Pressable onPress={closePicker} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>닫기</Text>
               </Pressable>
-            ))}
-
-            <Pressable onPress={close} style={styles.sheetCloseBtn}>
-              <Text style={styles.sheetCloseText}>닫기</Text>
             </Pressable>
-          </View>
-        </BottomSheetModal>
+          </Pressable>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -353,6 +352,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.backgroundPrimary,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     padding: 20,
     paddingBottom: 28,
@@ -361,6 +363,9 @@ const styles = StyleSheet.create({
   header: {
     marginTop: 6,
     marginBottom: 12,
+  },
+  headerDesc: {
+    marginTop: 6,
   },
 
   card: {
@@ -379,8 +384,8 @@ const styles = StyleSheet.create({
 
   input: {
     color: Colors.textPrimary,
-    fontSize: 18,
-    paddingVertical: 12,
+    fontSize: 16,
+    paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -429,38 +434,51 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
 
-  // ✅ BottomSheet 내부 스타일
-  sheetContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 18,
+  // ✅ 모달 배경
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'flex-end',
   },
-  sheetTitle: {
+
+  // ✅ 아래에서 올라오는 카드
+  modalCard: {
+    backgroundColor: Colors.backgroundPrimary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 28,
+  },
+
+  modalTitle: {
     color: Colors.textPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  sheetItem: {
-    paddingVertical: 14,
+
+  modalItem: {
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderSubtle,
   },
-  sheetItemPressed: {
+  modalItemPressed: {
     opacity: 0.7,
   },
-  sheetItemText: {
+  modalItemText: {
     color: Colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },
-  sheetCloseBtn: {
+
+  closeBtn: {
     marginTop: 14,
     alignSelf: 'flex-end',
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  sheetCloseText: {
+  closeBtnText: {
     color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '700',

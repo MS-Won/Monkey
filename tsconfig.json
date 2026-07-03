@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES5",
+    "ignoreDeprecations": "6.0",
     "module": "commonjs",
     "jsx": "react",
     "strict": true,

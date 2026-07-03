@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -9,41 +9,40 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
-import { RootStackParamList } from '../../navigator';
-import { analyzeSentence } from '../logic/AnalyzeSentence';
-import { getGPTSummary } from '../logic/gpt';
+import {RouteProp, useRoute} from '@react-navigation/native';
+import {RootStackParamList} from '../../navigator';
+import {analyzeSentence} from '../logic/AnalyzeSentence';
+import {getGPTSummary} from '../logic/gpt';
+import {saveDreamDiary} from '../database/initDB';
 
-import { Colors } from '../theme/colors';
-import { Typography } from '../theme/typography';
+import {Colors} from '../theme/colors';
+import {Typography} from '../theme/typography';
 
-// ✅ 로딩 화면 컴포넌트
 import LoadingOverlay from '../components/LoadingOverlay';
 
-// ✅ (추가) Profile Context(프롬프트용 한 줄)
-import { buildDisplayName, buildProfileContextForPrompt } from '../advice/profileContext';
+import {
+  buildDisplayName,
+  buildProfileContextForPrompt,
+} from '../advice/profileContext';
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;
 
-// ✅ 안드로이드에서 LayoutAnimation 사용하려면 활성화가 필요합니다.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/**
- * ✅ 종합 해몽 결과에서 "종합 해몽"과 "조언"을 분리하기 위한 파서
- */
 function splitSummaryAndAdvice(text: string) {
   const raw = (text ?? '').trim();
+
   if (!raw) {
-    return { summary: '', advice: '' };
+    return {summary: '', advice: ''};
   }
 
   const adviceHeaderRegex = /(##\s*(조언|기억하세요|기억\s*하세요)\s*)/i;
   const adviceMatch = raw.match(adviceHeaderRegex);
 
   if (!adviceMatch || adviceMatch.index === undefined) {
-    return { summary: raw, advice: '' };
+    return {summary: raw, advice: ''};
   }
 
   const adviceStart = adviceMatch.index;
@@ -56,60 +55,120 @@ function splitSummaryAndAdvice(text: string) {
     .replace(/##\s*(종합\s*해몽|종합\s*해몽\s*결과)\s*/i, '')
     .trim();
 
-  return { summary: summaryBody || before, advice: adviceBody };
+  return {summary: summaryBody || before, advice: adviceBody};
+}
+
+// 대표 키워드 추출
+function extractMainKeyword(dreamText: string, resultText: string) {
+  const source = `${dreamText} ${resultText}`;
+
+  const keywords = [
+    '돼지',
+    '뱀',
+    '물',
+    '불',
+    '피',
+    '돈',
+    '금',
+    '조상',
+    '가족',
+    '친구',
+    '학교',
+    '회사',
+    '집',
+    '바다',
+    '산',
+    '강',
+    '아이',
+    '아기',
+    '개',
+    '고양이',
+    '호랑이',
+    '용',
+    '새',
+    '비',
+    '눈',
+    '차',
+    '길',
+    '문',
+    '옷',
+    '신발',
+  ];
+
+  for (const keyword of keywords) {
+    if (source.includes(keyword)) {
+      return keyword;
+    }
+  }
+
+  return '기타';
+}
+
+// 로또력 점수 계산
+function calculateLuckyScore(text: string) {
+  let score = 0;
+
+  const luckyWords = [
+    '행운',
+    '재물',
+    '금전',
+    '돈',
+    '복',
+    '성공',
+    '합격',
+    '기회',
+    '풍요',
+    '좋은 결과',
+    '번창',
+    '돼지',
+    '용',
+    '금',
+    '보석',
+  ];
+
+  luckyWords.forEach(word => {
+    if (text.includes(word)) {
+      score += 10;
+    }
+  });
+
+  if (score > 100) {
+    return 100;
+  }
+
+  return score;
 }
 
 const ResultScreen = () => {
   const route = useRoute<ResultScreenRouteProp>();
 
-  // ✅ 기존 params 유지
-  // ✅ 프로필 관련 값은 "있을 수도/없을 수도" 있으니 안전하게 optional 처리
   const {
     sentenceList,
     dreamText,
     usedGPTInSplit,
     personName,
-
-    // (선택) 프로필 탭을 나중에 연결하면 여기로 넘길 수 있음
-    // 현재 없으면 undefined로 들어와도 문제 없음
-    // @ts-ignore
     gender,
-    // @ts-ignore
     ageGroup,
-    // @ts-ignore
     jobGroup,
   } = route.params as any;
 
-  // ✅ 로딩 상태
   const [loading, setLoading] = useState(true);
-
-  // ✅ 개발자용 영역 접기/펼치기
   const [devOpen, setDevOpen] = useState(false);
-
-  // ✅ 문장별 해몽 결과
   const [results, setResults] = useState<any[]>([]);
-
-  // ✅ 종합 해몽 / 조언 분리 출력
   const [summary, setSummary] = useState('');
   const [advice, setAdvice] = useState('');
-
-  // ✅ 종합 해몽 메타(비용 등)
   const [summaryMeta, setSummaryMeta] = useState<any>(null);
 
-  // ✅ 이름 표시(너무 과한 반복 방지)
   const displayName = useMemo(() => buildDisplayName(personName), [personName]);
 
-  // ✅ 프로필 컨텍스트 한 줄(없으면 빈 문자열)
   const contextLine = useMemo(() => {
     return buildProfileContextForPrompt({
-      // name은 컨텍스트에 굳이 넣을 필요 없어서 제외(원하면 넣어도 됨)
       gender,
       ageGroup,
       jobGroup,
     });
   }, [gender, ageGroup, jobGroup]);
 
-  // ✅ 문장 수가 1개인지 여부
   const isSingleSentence = sentenceList.length <= 1;
 
   useEffect(() => {
@@ -119,21 +178,20 @@ const ResultScreen = () => {
       try {
         const temp: any[] = [];
 
-        // 1) 문장별 해몽
         for (const sentence of sentenceList) {
           const res = await analyzeSentence(sentence);
           temp.push(res);
         }
+
         setResults(temp);
 
-        // 2) 종합 해몽 + ##조언 (✅ 원래 방식: GPT가 둘 다 생성)
         const parts = temp.map((r, idx) => {
           return `- 문장 ${idx + 1}: ${sentenceList[idx]}\n  해몽: ${r.result}`;
         });
 
         const structuredInput = [
           displayName ? `사용자 이름: ${displayName}` : '',
-          contextLine ? contextLine : '', // ✅ 프로필이 없으면 자동으로 빠짐
+          contextLine ? contextLine : '',
           `꿈 원문: ${dreamText}`,
           '',
           '문장별 해몽:',
@@ -142,7 +200,6 @@ const ResultScreen = () => {
           '요청:',
           '- 위 문장별 해몽을 단순 나열하지 말고, 하나의 이야기처럼 자연스럽게 엮어주세요.',
           '- 중복 표현은 합치고, 핵심 테마 2~3개로 묶어서 정리해주세요.',
-          // ✅ 변경 포인트: 조언 3개는 유지하되 "프로필 컨텍스트를 참고"만 추가
           '- 마지막에 "## 조언" 섹션을 만들고, 사용자가 기억해야 할 행동/주의점을 3개 이내로 제시해주세요.',
           '- 단, 위의 "사용자 맥락(참고용)"이 제공된 경우 그 정보를 참고하여 조언의 표현과 강조점을 조정해주세요.',
           '- 사용자 맥락이 비어있다면 일반적인 조언으로 작성해주세요.',
@@ -151,16 +208,26 @@ const ResultScreen = () => {
           .join('\n');
 
         const summaryRes = await getGPTSummary(structuredInput);
-
         setSummaryMeta(summaryRes);
 
         const parsed = splitSummaryAndAdvice(summaryRes.result);
+
         setSummary(parsed.summary);
         setAdvice(parsed.advice);
+
+        const finalTextForSave = `${parsed.summary}\n${parsed.advice}`;
+        const mainKeyword = extractMainKeyword(dreamText, finalTextForSave);
+        const luckyScore = calculateLuckyScore(finalTextForSave);
+
+        saveDreamDiary(
+          dreamText,
+          finalTextForSave,
+          mainKeyword,
+          luckyScore,
+        );
       } catch (e) {
         console.log('[ResultScreen] analyzeAll error:', e);
 
-        // ✅ 실패해도 사용자 화면이 멈추지 않도록 기본 메시지 세팅
         setSummary('해석 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
         setAdvice('네트워크 상태를 확인한 뒤 다시 실행해 보세요.');
       } finally {
@@ -169,7 +236,6 @@ const ResultScreen = () => {
     };
 
     analyzeAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getCostInfo = (usd: number) => {
@@ -177,7 +243,6 @@ const ResultScreen = () => {
     return `💵 ${usd.toFixed(5)} / ₩ ${won.toFixed(0)}`;
   };
 
-  // ✅ 사용자용 "풀이 해몽" 내용
   const userExplainBlocks = useMemo(() => {
     return results.map((res, idx) => {
       return {
@@ -190,10 +255,9 @@ const ResultScreen = () => {
 
   const toggleDev = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setDevOpen((v) => !v);
+    setDevOpen(v => !v);
   };
 
-  // ✅ 결과 준비 전에는 로딩 화면만 표시
   if (loading) {
     return <LoadingOverlay />;
   }
@@ -203,15 +267,15 @@ const ResultScreen = () => {
       <Text style={Typography.h2}>해몽 결과</Text>
 
       <Text style={[Typography.muted, styles.topHint]}>
-        {displayName ? `${displayName}의 꿈을 바탕으로 정리했습니다.` : '꿈을 바탕으로 정리했습니다.'}
+        {displayName
+          ? `${displayName}의 꿈을 바탕으로 정리했습니다.`
+          : '꿈을 바탕으로 정리했습니다.'}
       </Text>
 
-      {/* 1) 당신의 꿈 */}
       <Card title="당신의 꿈">
         <Text style={styles.bodyText}>{dreamText}</Text>
       </Card>
 
-      {/* 2) 풀이 해몽 (문장 2개 이상일 때만 표시) */}
       {!isSingleSentence && (
         <Card title="풀이 해몽">
           {userExplainBlocks.map((b, idx) => (
@@ -226,30 +290,31 @@ const ResultScreen = () => {
         </Card>
       )}
 
-      {/* 3) 종합 해몽 */}
       <Card title="종합 해몽">
         <Text style={styles.summaryText}>{summary}</Text>
 
         {summaryMeta && typeof summaryMeta.totalCostUsd === 'number' && (
-          <View style={[styles.metaRow, { marginTop: 10 }]}>
-            <Chip text={`SUMMARY: ${summaryMeta.result !== '해석 실패' ? 'GPT' : 'NO-GPT'}`} />
+          <View style={[styles.metaRow, {marginTop: 10}]}>
+            <Chip
+              text={`SUMMARY: ${
+                summaryMeta.result !== '해석 실패' ? 'GPT' : 'NO-GPT'
+              }`}
+            />
             <Chip text={getCostInfo(summaryMeta.totalCostUsd)} />
           </View>
         )}
       </Card>
 
-      {/* 4) 기억하세요(조언) */}
       <Card title="기억하세요">
         {advice ? (
           <Text style={styles.bodyText}>{advice}</Text>
         ) : (
-          <Text style={[styles.bodyText, { color: Colors.textSecondary }]}>
+          <Text style={[styles.bodyText, {color: Colors.textSecondary}]}>
             조언을 생성하지 못했습니다.
           </Text>
         )}
       </Card>
 
-      {/* ✅ 개발자용 섹션 (접기/펼치기) */}
       <View style={styles.devWrapper}>
         <Pressable onPress={toggleDev} style={styles.devHeader}>
           <Text style={styles.devTitle}>개발자용(테스트 정보)</Text>
@@ -257,14 +322,16 @@ const ResultScreen = () => {
         </Pressable>
 
         {devOpen && (
-          <View style={{ marginTop: 10 }}>
-            <Text style={[Typography.muted, { marginBottom: 8 }]}>
+          <View style={{marginTop: 10}}>
+            <Text style={[Typography.muted, {marginBottom: 8}]}>
               비용/캐시 표시는 개발용입니다.
             </Text>
 
             <Card title="문장 분리 결과(DEV)">
               <Text style={styles.bodyText}>
-                {sentenceList.map((s: string, idx: number) => `${idx + 1}. ${s}`).join('\n')}
+                {sentenceList
+                  .map((s: string, idx: number) => `${idx + 1}. ${s}`)
+                  .join('\n')}
               </Text>
 
               <View style={styles.metaRow}>
@@ -285,9 +352,11 @@ const ResultScreen = () => {
                     <Chip text={`방법: ${res.method}`} />
                     <Chip text={`GPT: ${res.method === 'GPT' ? 'O' : 'X'}`} />
                     <Chip text={`Cache: ${res.method === 'CACHE' ? 'O' : 'X'}`} />
+
                     {typeof res.totalCostUsd === 'number' ? (
                       <Chip text={getCostInfo(res.totalCostUsd)} />
                     ) : null}
+
                     <Chip
                       text={
                         res.similarity !== undefined
@@ -302,7 +371,6 @@ const ResultScreen = () => {
               ))}
             </Card>
 
-            {/* ✅ (추가) 컨텍스트가 실제로 들어갔는지 DEV에서 확인 가능 */}
             <Card title="Profile Context(DEV)">
               <Text style={styles.bodyText}>
                 {contextLine ? contextLine : '(프로필 정보 없음)'}
@@ -319,16 +387,16 @@ const ResultScreen = () => {
   );
 };
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({title, children}: {title: string; children: React.ReactNode}) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
-      <View style={styles.cardBody}>{children}</View>
+      <View>{children}</View>
     </View>
   );
 }
 
-function Chip({ text }: { text: string }) {
+function Chip({text}: {text: string}) {
   return (
     <View style={styles.chip}>
       <Text style={styles.chipText}>{text}</Text>
@@ -353,7 +421,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
   },
-
   card: {
     backgroundColor: Colors.backgroundSecondary,
     borderRadius: 14,
@@ -367,12 +434,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 10,
   },
-  cardBody: {},
-
   bodyText: {
     ...Typography.body,
   },
-
   userBlock: {
     paddingVertical: 6,
   },
@@ -382,7 +446,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
-
   resultBlock: {
     paddingVertical: 6,
   },
@@ -392,7 +455,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
-
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -412,17 +474,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-
   divider: {
     height: 1,
     backgroundColor: Colors.divider,
     marginTop: 14,
   },
-
   summaryText: {
     ...Typography.body,
   },
-
   devWrapper: {
     marginTop: 14,
     borderRadius: 14,
@@ -446,7 +505,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-
   footer: {
     marginTop: 16,
   },
