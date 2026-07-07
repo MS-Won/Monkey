@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python --version; where.exe python 2>$null; Get-ChildItem \"D:\\\\00 My Project\\\\01 Monkey\\\\backend\" -Force)",
+      "PowerShell(Get-Content *)",
+      "Bash(find . -name \".env*\" -not -path \"*/node_modules/*\")",
+      "Bash(ls .env.example)",
+      "Bash(git config *)",
+      "Bash(echo \"name: $\\(git config --global user.name 2>/dev/null || echo UNSET\\)\")",
+      "Bash(echo \"email: $\\(git config --global user.email 2>/dev/null || echo UNSET\\)\")",
+      "Bash(git init *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(grep -iE '\\\\.env$|\\\\.env\\\\.|debug\\\\.keystore|node_modules|\\\\.db$|\\\\.aab$|\\\\.apk$')"
+    ]
+  }
+}

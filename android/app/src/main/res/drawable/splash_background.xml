@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 배경색: frontend/src/theme/colors.ts Colors.backgroundPrimary와 동기화 -->
+    <item android:drawable="@color/ic_launcher_background" />
+
+    <!-- 중앙 마스코트 마크 (네이티브 스플래시는 JS/애니메이션 실행 전이라 정적 표시) -->
+    <item
+        android:width="160dp"
+        android:height="160dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_launcher_foreground" />
+
+</layer-list>

@@ -1,0 +1,22 @@
+# env (절대 업로드 금지)
+.env
+.env.*
+!.env.example
+
+# node
+node_modules/
+
+# android build
+android/.gradle/
+android/app/build/
+android/build/
+android/app/.cxx/
+
+# logs & outputs
+*.log
+*.apk
+*.aab
+
+android/app/debug.keystore
+android/app/src/main/assets/*.db
+dreamlog.txt

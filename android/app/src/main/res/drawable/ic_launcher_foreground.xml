@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monkey mascot mark, adapted from frontend/src/components/Mascot.tsx, centered
+     in the 108x108dp adaptive-icon canvas (safe zone is the inner 66x66dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- left ear -->
+    <path
+        android:pathData="M28.5,47 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000" />
+
+    <!-- right ear -->
+    <path
+        android:pathData="M64.5,47 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000" />
+
+    <!-- head -->
+    <path
+        android:pathData="M35,58 a19,19 0 1,0 38,0 a19,19 0 1,0 -38,0"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2.8"
+        android:fillColor="#00000000" />
+
+    <!-- face patch -->
+    <path
+        android:pathData="M42.5,62 a11.5,9.5 0 1,0 23,0 a11.5,9.5 0 1,0 -23,0"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+
+    <!-- eyes -->
+    <path
+        android:pathData="M46.8,57 a1.7,1.7 0 1,0 3.4,0 a1.7,1.7 0 1,0 -3.4,0"
+        android:fillColor="#C9A2FF" />
+    <path
+        android:pathData="M57.8,57 a1.7,1.7 0 1,0 3.4,0 a1.7,1.7 0 1,0 -3.4,0"
+        android:fillColor="#C9A2FF" />
+
+    <!-- nose -->
+    <path
+        android:pathData="M53,62.5 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0"
+        android:fillColor="#C9A2FF" />
+
+    <!-- smile -->
+    <path
+        android:pathData="M47.5,67 Q54,72 60.5,67"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- hair tuft -->
+    <path
+        android:pathData="M49,40 Q54,35 59,40"
+        android:strokeColor="#C9A2FF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>
