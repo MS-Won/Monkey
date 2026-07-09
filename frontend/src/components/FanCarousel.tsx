@@ -16,9 +16,9 @@ import DreamCard from './DreamCard/DreamCard';
 import { Spacing, Typography } from '../theme';
 import { resolveArchetypeCard } from '../data/archetypeCards';
 
-const CARD_WIDTH = 152;
-const FAN_SPACING = 46;
-const ARC_DROOP = 10;
+const CARD_WIDTH = 168;
+const FAN_SPACING = 52;
+const ARC_DROOP = 12;
 
 type FanCarouselProps<T> = {
   items: T[];
@@ -125,10 +125,11 @@ function CarouselCard({
     const translateX = offset * FAN_SPACING;
     const translateY = Math.abs(offset) * ARC_DROOP;
     const rotateZ = clamp(offset * 8, -24, 24);
+    // 가운데(포커스) 카드를 가장 크게, 양옆으로 갈수록 확실히 작게
     const scale = interpolate(
       Math.abs(offset),
       [0, 1, 2, 3],
-      [1, 0.94, 0.88, 0.82],
+      [1, 0.76, 0.68, 0.6],
       Extrapolation.CLAMP,
     );
     const opacity = interpolate(Math.abs(offset), [0, 2.5, 3], [1, 1, 0], Extrapolation.CLAMP);
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
   stage: {
-    height: 260,
+    height: 320,
     alignItems: 'center',
     justifyContent: 'center',
   },

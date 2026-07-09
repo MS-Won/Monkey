@@ -2,6 +2,8 @@
     package="com.monkey">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 음성 입력(@react-native-voice)용 마이크 권한 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:name=".MainApplication"

@@ -378,7 +378,7 @@ const InputScreen = () => {
         />
       </View>
 
-      <Text style={styles.devHint}>서버: {SERVER_BASE_URL}</Text>
+      {__DEV__ && <Text style={styles.devHint}>서버: {SERVER_BASE_URL}</Text>}
     </View>
   );
 };

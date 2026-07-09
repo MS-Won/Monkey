@@ -14,7 +14,16 @@
       "Bash(grep -iE '\\\\.env$|\\\\.env\\\\.|debug\\\\.keystore|node_modules|\\\\.db$|\\\\.aab$|\\\\.apk$')",
       "Bash(git branch *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(grep -iE 'lock|\\\\.log$|\\\\.tmp$|scratch')"
+      "Bash(grep -iE 'lock|\\\\.log$|\\\\.tmp$|scratch')",
+      "Bash(tasklist)",
+      "Bash(taskkill //PID 20324 //F)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('backend/dream_dictionary.json',encoding='utf-8'\\)\\); print\\('type:', type\\(d\\).__name__\\); print\\('count:', len\\(d\\) if isinstance\\(d,list\\) else len\\(d.get\\('symbols', d\\)\\)\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('keyword_server.py',encoding='utf-8'\\).read\\(\\)\\); ast.parse\\(open\\('dream_lexicon.py',encoding='utf-8'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(python -c \"from PIL import Image; im=Image.open\\('img/01_Dawn.png'\\); print\\('size', im.size, im.mode\\)\")",
+      "Read(//c/Windows/Fonts//**)",
+      "Bash(python -c ' *)",
+      "Bash(SCRATCH=\"C:/Users/User/AppData/Local/Temp/claude/D--00-My-Project-01-Monkey/2133affd-b628-44da-91a3-348dc1a1e3e2/scratchpad\" OUT=scratch python scripts/apply-card-labels.py 1 13 19)"
     ]
   }
 }

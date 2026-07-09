@@ -38,7 +38,7 @@ export default function DiaryScreen() {
     return (
       <View style={styles.emptyContainer}>
         <AuroraBackground intensity={0.45} />
-        <Text style={Typography.h1}>꿈카드</Text>
+        <Text style={Typography.h1}>꿈기록</Text>
         <View style={styles.emptyBody}>
           <Mascot size={72} holo />
           <Text style={[Typography.caption, styles.emptyText]}>아직 기록된 꿈이 없어요.</Text>
@@ -56,7 +56,7 @@ export default function DiaryScreen() {
     <View style={styles.screen}>
       <AuroraBackground intensity={0.45} />
       <View style={styles.headerBlock}>
-        <Text style={Typography.h1}>꿈카드</Text>
+        <Text style={Typography.h1}>꿈기록</Text>
         <Ornament width={140} style={styles.headerOrnament} />
         <Text style={[Typography.caption, styles.dateLabel]}>
           {focusedItem ? formatDate(focusedItem.created_at) : ' '}

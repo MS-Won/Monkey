@@ -84,7 +84,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '홈' }} />
       <Tab.Screen name="Stats" component={StatsScreen} options={{ title: '통계' }} />
-      <Tab.Screen name="Diary" component={DiaryScreen} options={{ title: '꿈카드' }} />
+      <Tab.Screen name="Diary" component={DiaryScreen} options={{ title: '꿈기록' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: '프로필' }} />
     </Tab.Navigator>
   );

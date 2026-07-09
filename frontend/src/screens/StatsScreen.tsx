@@ -20,11 +20,23 @@ import {getDB} from '../database/initDB';
 import Card from '../components/Card';
 import Mascot from '../components/Mascot';
 import AuroraBackground from '../components/holo/AuroraBackground';
+import {resolveArchetypeCard, ArchetypeCard} from '../data/archetypeCards';
 
 const screenWidth = Dimensions.get('window').width;
 
+// 한글 받침 유무로 조사 선택 (예: '새벽'+은/는 → '새벽은')
+const hasFinalConsonant = (word: string) => {
+  if (!word) return false;
+  const c = word.charCodeAt(word.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return false;
+  return (c - 0xac00) % 28 !== 0;
+};
+const josa = (word: string, withF: string, withoutF: string) =>
+  hasFinalConsonant(word) ? withF : withoutF;
+
 type KeywordStat = {
-  keyword: string;
+  keyword: string; // DB 원본 값(영문 카드명 등) — React key/조회용
+  nameKo: string; // 화면 표기용 한글
   count: number;
   percent: number;
 };
@@ -42,7 +54,7 @@ const StatsScreen = () => {
   const [total30Count, setTotal30Count] = useState(0);
   const [comment, setComment] = useState('');
 
-  const [topKeyword, setTopKeyword] = useState<string | null>(null);
+  const [topCard, setTopCard] = useState<ArchetypeCard | null>(null);
   const [keywordComment, setKeywordComment] = useState('');
   const [keywordStats, setKeywordStats] = useState<KeywordStat[]>([]);
 
@@ -127,6 +139,7 @@ const StatsScreen = () => {
 
           const calculated = temp.map(item => ({
             keyword: item.keyword,
+            nameKo: resolveArchetypeCard(item.keyword).nameKo,
             count: item.count,
             percent:
               totalKeywordCount === 0
@@ -136,11 +149,12 @@ const StatsScreen = () => {
 
           setKeywordStats(calculated);
 
-          if (calculated.length > 0) {
-            setTopKeyword(calculated[0].keyword);
-            setKeywordComment(getKeywordComment(calculated[0].keyword));
+          if (temp.length > 0) {
+            const card = resolveArchetypeCard(temp[0].keyword);
+            setTopCard(card);
+            setKeywordComment(getKeywordComment(card));
           } else {
-            setTopKeyword(null);
+            setTopCard(null);
             setKeywordComment('');
           }
         },
@@ -251,8 +265,20 @@ const StatsScreen = () => {
     return '비교적 깊은 잠에 들고 계시는 것 같아요.';
   };
 
-  const getKeywordComment = (keyword: string) => {
-    return `“${keyword}”은/는 최근 꿈에서 자주 등장한 상징이에요. 최근 이와 관련된 생각이나 상황이 반복되고 있지는 않은지 가볍게 돌아보세요.`;
+  // 카드의 의미(meaning)와 정서 극성(polarity)을 바탕으로 문장 + 조언을 구성
+  const getKeywordComment = (card: ArchetypeCard) => {
+    const meaning = card.meaning.replace(/\s*·\s*/g, ', ');
+    const topic = josa(card.nameKo, '은', '는');
+    const obj = meaning + josa(meaning, '을', '를');
+
+    const advice =
+      card.polarity === 'light'
+        ? '마음이 향하는 밝은 신호일 수 있어요. 지금의 흐름을 믿고 한 걸음 더 나아가 보세요.'
+        : card.polarity === 'shadow'
+        ? '조금 지치고 무거운 시기일 수 있어요. 감정을 밀어내기보다 천천히 들여다보고 스스로를 다독여 주세요.'
+        : '요즘 이 주제가 마음속에서 맴돌고 있는지도 몰라요. 스스로에게 가만히 물어보는 시간을 가져 보세요.';
+
+    return `‘${card.nameKo}’${topic} 최근 꿈에 자주 나타난 상징이에요. ${obj} 뜻하는 카드로, ${card.essence}. ${advice}`;
   };
 
   const getLottoTitle = (score: number) => {
@@ -276,33 +302,31 @@ const StatsScreen = () => {
       {/* 상단 카드 */}
       <Card title="최근 30일 꿈 기록" style={styles.card}>
         {totalAllCount === 0 ? (
-          <View style={styles.emptyRow}>
+          <View style={styles.emptyRowCentered}>
             <Mascot size={56} holo />
-            <View style={styles.emptyRowText}>
-              <Text style={styles.bigText}>아직 기록이 없어요</Text>
-              <Text style={styles.subText}>{comment}</Text>
-            </View>
+            <Text style={[styles.bigText, styles.centerText]}>아직 기록이 없어요</Text>
+            <Text style={[styles.subText, styles.centerText]}>{comment}</Text>
           </View>
         ) : (
-          <>
-            <Text style={styles.bigText}>{total30Count}번</Text>
-            <Text style={styles.subText}>
+          <View style={styles.centerContent}>
+            <Text style={[styles.bigText, styles.centerText]}>{total30Count}번</Text>
+            <Text style={[styles.subText, styles.centerText]}>
               최근 30일 중에 꿈을 {total30Count}번 기록했어요.
             </Text>
-            <Text style={styles.subText}>{comment}</Text>
-          </>
+            <Text style={[styles.subText, styles.centerText]}>{comment}</Text>
+          </View>
         )}
       </Card>
 
       {/* 중단 카드 */}
       <Card title="최근 자주 등장한 꿈 키워드" style={styles.card}>
-        {topKeyword ? (
-          <>
-            <Text style={styles.keywordText}>{topKeyword}</Text>
-            <Text style={styles.subText}>{keywordComment}</Text>
-          </>
+        {topCard ? (
+          <View style={styles.centerContent}>
+            <Text style={[styles.keywordText, styles.centerText]}>{topCard.nameKo}</Text>
+            <Text style={[styles.subText, styles.centerText]}>{keywordComment}</Text>
+          </View>
         ) : (
-          <Text style={styles.subText}>
+          <Text style={[styles.subText, styles.centerText]}>
             꿈을 몇 번 기록하면 자주 나타나는 상징을 보여드릴게요.
           </Text>
         )}
@@ -313,7 +337,7 @@ const StatsScreen = () => {
         {keywordStats.length > 0 ? (
           keywordStats.map(item => (
             <View key={item.keyword} style={styles.keywordRow}>
-              <Text style={styles.keywordName}>{item.keyword}</Text>
+              <Text style={styles.keywordName}>{item.nameKo}</Text>
               <Text style={styles.keywordPercent}>{item.percent}%</Text>
             </View>
           ))
@@ -508,13 +532,15 @@ const styles = StyleSheet.create({
   card: {
     marginTop: Spacing.md,
   },
-  emptyRow: {
-    flexDirection: 'row',
+  emptyRowCentered: {
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
-  emptyRowText: {
-    flex: 1,
+  centerContent: {
+    alignItems: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
   },
   bigText: {
     color: Colors.textPrimary,

@@ -26,6 +26,10 @@ android/keystore.properties
 *.jks
 *.keystore
 
+# python 캐시(전역)
+__pycache__/
+*.pyc
+
 # backend 로컬 산출물
 backend/__pycache__/
 backend/server.log

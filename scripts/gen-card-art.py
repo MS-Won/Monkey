@@ -34,28 +34,37 @@ ROOT = os.path.dirname(HERE)
 OUT_DIR = os.path.join(ROOT, "frontend", "assets", "images", "cards")
 
 PROVIDER = os.environ.get("PROVIDER", "pollinations").lower()
-WIDTH, HEIGHT = 832, 1248  # portrait 2:3
+WIDTH, HEIGHT = 1024, 1536  # portrait 2:3, 고해상도(샘플 톤 리디자인)
 BASE_SEED = 7  # 덱 통일감을 위한 고정 시드 베이스
 
+# 샘플(Card Sample.png) 톤: 밝은 크림/양피지 배경 + 부드러운 수채화 파스텔 아르누보.
+# 무거운 다크 인디고 구버전에서 → 밝고 섬세한 무하풍 동화 수채화로 전환.
 STYLE_PREAMBLE = (
-    "Art Nouveau tarot card illustration in the style of Alphonse Mucha, "
-    "a single ethereal dream goddess, flowing organic linework, "
-    "ornamental gold filigree border with floral motifs, decorative halo arch behind her head, "
-    "iridescent holographic sheen, opal and mother-of-pearl, deep indigo and violet night palette, "
-    "soft luminous glow, elegant flowing robes, celestial and dreamlike atmosphere, highly detailed, "
-    "symmetrical ornamental composition, portrait orientation, vertical tarot card format, no text, no lettering"
+    "delicate Art Nouveau tarot card illustration in the style of Alphonse Mucha "
+    "blended with soft watercolor storybook art, a single graceful ethereal goddess, "
+    "fine flowing ink linework, light and airy composition, soft pastel watercolor washes, "
+    "gentle muted palette painted on a warm cream ivory parchment background, "
+    "thin ornate gold filigree border frame with floral and vine motifs, "
+    "a decorative arch or soft halo behind her head, tender luminous light, "
+    "elegant flowing classical robes, serene dreamlike storybook atmosphere, "
+    "refined and highly detailed, subtle aged paper texture, "
+    "symmetrical ornamental composition, portrait orientation, vertical tarot card format, "
+    "no text, no lettering, no words, no title plate"
 )
 
 NEGATIVE = (
-    "text, watermark, signature, letters, words, ugly, deformed hands, extra limbs, "
-    "low quality, photorealistic, modern clothing"
+    "text, watermark, signature, letters, words, title, ugly, deformed hands, extra limbs, "
+    "low quality, photorealistic, harsh dark background, heavy black, oversaturated, neon, modern clothing"
 )
 
-# polarity별 톤 보강
+# polarity별 톤 보강 — 배경은 모두 밝은 크림/양피지 유지, 내부 색조만 다르게.
 TONE = {
-    "light": "luminous gold and white glow, serene uplifting mood, blossoms and dawn light",
-    "neutral": "balanced silver and violet tones, contemplative graceful stillness",
-    "shadow": "deep indigo and inky violet, veils and shadow, solemn quiet beauty, not scary",
+    "light": "warm golden dawn light, soft ivory blush and pale gold washes, "
+             "serene uplifting mood, delicate blossoms, airy and bright",
+    "neutral": "soft muted lavender sage and pale sky-blue watercolor washes on cream, "
+               "calm contemplative graceful stillness, gentle and balanced",
+    "shadow": "cool muted indigo and dusty violet watercolor washes on warm cream parchment, "
+              "quiet solemn beauty, still soft and gentle and luminous, not dark, not scary",
 }
 
 # id -> (name, polarity, per-card scene). 스펙은 dream-goddess-bible.md 기반.

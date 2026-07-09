@@ -111,7 +111,7 @@ export default function DreamCard({
       onPress={onToggleFlip}
       style={[compact ? styles.cardCompact : styles.cardFull, style]}>
 
-      {/* 앞면 — Dream Goddess 일러스트 + 하단 텍스트 오버레이 */}
+      {/* 앞면 — 카드 일러스트 (id·영문명/의미·한글명/의미가 이미지에 이미 구워져 있어 앱 오버레이 없음) */}
       <Animated.View style={[styles.face, styles.frontFace, frontStyle]}>
         {art ? (
           // contain: 일러스트(프레임 포함) 전체를 잘림 없이 카드에 맞춘다.
@@ -119,36 +119,6 @@ export default function DreamCard({
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.artFallback]} />
         )}
-
-        <Scrim position="top" />
-        <Scrim position="bottom" />
-
-        <View style={styles.frontOverlay}>
-          <View style={styles.topBlock}>
-            <Text style={styles.cardNo}>No. {pad2(card.id)}</Text>
-            <Text
-              style={[Typography.cardSymbol, styles.symbol, compact && styles.symbolCompact]}
-              numberOfLines={1}>
-              {card.name.toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={styles.bottomBlock}>
-            <View style={styles.holoRule} />
-            <Text style={[styles.nameKo, compact && styles.nameKoCompact]} numberOfLines={1}>
-              {card.nameKo}
-            </Text>
-            <Text
-              style={[Typography.cardMeaning, styles.meaning]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-              ellipsizeMode="clip">
-              {card.meaning}
-            </Text>
-            {!compact && <Text style={styles.hint}>탭하여 해몽 보기</Text>}
-          </View>
-        </View>
       </Animated.View>
 
       {/* 뒷면 — 해몽(가독성 위해 어두운 표면 + 골드 보더) */}
@@ -164,7 +134,7 @@ export default function DreamCard({
 const styles = StyleSheet.create({
   // 2:3 종횡비로 고정 → 일러스트(2:3)와 정확히 일치, cover 크롭 없음
   cardCompact: {
-    width: 158,
+    width: 178,
     aspectRatio: CARD_RATIO,
   },
   cardFull: {

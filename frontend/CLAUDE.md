@@ -41,8 +41,3 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - [아키타입 카드 30종 정의](../docs/design/archetype-cards.md) — 카드 데이터(코드) 단일 소스
 - 카드 일러스트 생성: `scripts/gen-card-art.py` (무료 Pollinations FLUX 기본, provider 교체 가능) → `frontend/assets/images/cards/`, `frontend/src/data/cardArt.ts` 매핑
 
-## Progress (2026-07-07)
-
-- **완료(이번 세션)**: Dream Goddess 아르누보 전면 리디자인 — 30장 무료 AI 일러스트 카드 생성·적용, `DreamCard` 앞면 일러스트화, 앱 전반 골드 아르누보 톤(Ornament/골드 라인). UX 4건: 뒤로가기 버튼(`BackButton` → Result/음성입력/DiaryDetail), 카드 의미 한 줄, 꿈일기→꿈카드, 캐러셀 중앙+스와이프 날짜. **카드 이미지 렌더 버그 해결**(RN Image에 `StyleSheet.absoluteFill`만 주면 Android에서 resizeMode가 깨져 우측 치우침·잘림 → 명시적 `width/height:'100%'` 필요). 에뮬레이터 실기 검증 완료, `tsc` 0오류.
-- **남은 일**: Result/Stats/Profile/Splash의 더 깊은 아르누보 오르나멘트는 사용자와 육안 이터레이션하며 추가 가능. 구도가 아쉬운 카드는 해당 id만 재생성(`python scripts/gen-card-art.py <id>`). Beta/수익화/출시 단계는 `todo.md` 참고.
-- **확정(다시 묻지 말 것)**: 톤=이리데슨트+아르누보(다크 베이스 유지, 꿈=밤). 카드 아트=정적 자산 1회 생성(매 실행 AI 호출 금지). 이미지 provider 기본=무료 Pollinations. 상세 이력은 auto-memory `project_monkey_status.md` + `docs/`.
