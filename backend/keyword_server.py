@@ -20,6 +20,9 @@ from dotenv import load_dotenv
 # konlpy는 Java/JVM 환경 필요 (이미 구성되어 있다고 가정)
 from konlpy.tag import Okt
 
+# 전통 해몽 상징 사전(경량 RAG) — 매칭된 상징 의미를 /interpret 근거로 주입
+import dream_lexicon
+
 
 # =========================
 # 0) 기본 설정
@@ -49,6 +52,17 @@ BLACKLIST_PHRASES = [
     "깨어나다",
     "알람이 울리다",
     "현실로 돌아오다",
+    # 기상(잠에서 깸) 관용구 — 어미 변형까지 잡도록 부분 문자열로 추가
+    "꿈이 깨",
+    "꿈이 깼",
+    "꿈을 깼",
+    "꿈에서 깨",
+    "꿈에서 깼",
+    "잠에서 깼",
+    "눈을 떠보니",
+    "눈을 뜨니",
+    "눈을 떴더니",
+    "눈을 떴다",
 ]
 
 # 분리 판단 기준: 동사 개수 >= 2 이면 GPT 분리
@@ -72,8 +86,11 @@ PERSONA_SYSTEM = (
     "2) 전통 한국 해몽의 상징 풀이에 뿌리를 두되, 교과서적 나열이 아니라 하나의 이야기로 엮어 들려준다.\n"
     "3) '~로 보입니다', '~한 기운이 감돕니다', '옛사람들은 이런 꿈을 ~라 여겼지요' 같은 해몽가의 어조를 쓴다.\n"
     "4) 단정적인 미래 예언이나 불안·공포를 조장하는 말은 하지 않는다. 길흉은 '가능성'과 '기운'으로 담담히 짚는다.\n"
-    "5) 심리학 용어(무의식·트라우마 등)를 앞세우지 않는다. 정서는 옛말과 상징의 언어로 풀어낸다.\n"
-    "6) 과장·미신적 위협·상술 문구를 쓰지 않는다. 담백하되 마음에 남는 문장으로."
+    "5) 심리학·서양식 꿈해석 용어(무의식·트라우마·에너지·정화·내면아이 등)를 절대 쓰지 않는다. "
+    "정서는 오직 전통 옛말과 상징의 언어로 풀어낸다.\n"
+    "6) 과장·미신적 위협·상술 문구를 쓰지 않는다. 담백하되 마음에 남는 문장으로.\n"
+    "7) 해몽의 상징 의미는 반드시 '전통 한국 민속 해몽'을 따른다. 근거로 [전통 해몽 근거]가 주어지면 "
+    "그 의미를 최우선으로 적용하고, 그와 어긋나는 서양식·현대식 재해석을 하지 않는다."
 )
 
 
@@ -413,6 +430,23 @@ def interpret():
     if too_long:
         return too_long
 
+    # 전통 해몽 사전에서 이 장면의 상징을 매칭해 근거로 주입(경량 RAG)
+    matched = dream_lexicon.match_symbols(text, okt, normalize_sentence)
+    grounding = dream_lexicon.build_grounding_block(matched)
+
+    if grounding:
+        grounding_section = (
+            "\n\n[전통 해몽 근거] (아래 상징 의미를 반드시 최우선으로 적용하세요)\n"
+            f"{grounding}\n"
+            "위 근거에 없는 요소(고유명사·현대 사물 등)는 무리하게 상징으로 풀지 말고 "
+            "장면의 배경으로 담담히 다뤄 주세요."
+        )
+    else:
+        grounding_section = (
+            "\n\n(이 장면에는 전통 해몽 사전에 등재된 상징이 뚜렷하지 않습니다. "
+            "상징을 억지로 지어내지 말고, 장면의 정서와 분위기를 전통 어조로 담백하게 풀어 주세요.)"
+        )
+
     messages = [
         {
             "role": "system",
@@ -425,17 +459,20 @@ def interpret():
                 "이 장면 하나를 전통 해몽의 상징으로 짧게(2~3문장) 풀어 주세요. "
                 "해몽가가 곁에서 나직이 말하듯, 담백하되 마음에 닿는 어조로. "
                 "미래를 단정하지 말고 기운과 상징으로만 짚어 주세요."
+                f"{grounding_section}"
             )
         }
     ]
 
     try:
-        result, in_tok, out_tok, cost = openai_chat(messages, model=CHAT_MODEL, temperature=0.8)
+        # temperature를 낮춰(0.5) 전통 근거에서 벗어나는 변동을 줄인다.
+        result, in_tok, out_tok, cost = openai_chat(messages, model=CHAT_MODEL, temperature=0.5)
         return jsonify({
             "result": result or "해석 실패",
             "inputToken": in_tok,
             "outputToken": out_tok,
-            "totalCostUsd": cost
+            "totalCostUsd": cost,
+            "matchedSymbols": dream_lexicon.matched_headwords(matched),  # 디버그용, 프론트는 무시 가능
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -491,6 +528,8 @@ def summary():
                 "이 꿈이 왜 그 카드로 이어지는지 풀어 주세요. 단정적 예언·공포 조장은 하지 않습니다.)\n\n"
                 "## 조언\n"
                 "(마음에 새길 행동이나 태도를 3가지 이내로, 담백하고 다정하게. 위협·과장 금지.)\n\n"
+                "주의: 장면별 해몽에 담긴 전통 상징의 의미(길흉)를 그대로 이어받아 종합하고, "
+                "서양식·심리학 용어(무의식·에너지·정화·내면 등)를 새로 끌어들이지 마세요.\n\n"
                 f"### 참고 자료:{joined}"
             ),
         },
@@ -509,12 +548,24 @@ def summary():
 
 
 # =========================
-# 9) 서버 실행
+# 9) 헬스체크 (호스트 워밍업/모니터링용)
 # =========================
+@app.get("/health")
+def health():
+    # Okt(JVM)까지 로드되어 실제 요청을 받을 준비가 됐는지 확인
+    return jsonify({"ok": True})
+
+
+# =========================
+# 10) 서버 실행
+# =========================
+# 프로덕션(컨테이너)에서는 gunicorn이 `keyword_server:app`을 직접 구동하므로
+# 아래 app.run 블록은 로컬 개발 실행 전용이다.
 if __name__ == "__main__":
-    # 포트는 5001 고정 (합의)
-    # host=0.0.0.0 로 해야 폰/에뮬레이터에서 PC로 접근 가능
+    # 포트: 호스트가 주입하는 PORT 환경변수를 우선 사용(없으면 로컬 기본 5001).
+    # host=0.0.0.0 로 해야 폰/에뮬레이터/컨테이너 외부에서 접근 가능.
     # debug 모드는 예외 발생 시 스택트레이스를 그대로 노출하므로 기본은 off,
     # 필요할 때만 FLASK_DEBUG=1 로 켠다.
+    port = int(os.getenv("PORT", "5001"))
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
-    app.run(host="0.0.0.0", port=5001, debug=debug_mode)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

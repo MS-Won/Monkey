@@ -20,3 +20,13 @@ android/app/.cxx/
 android/app/debug.keystore
 android/app/src/main/assets/*.db
 dreamlog.txt
+
+# 릴리스 서명(절대 커밋 금지 — 유출 시 앱 위조/영구 분실 위험)
+android/keystore.properties
+*.jks
+*.keystore
+
+# backend 로컬 산출물
+backend/__pycache__/
+backend/server.log
+backend/health_test.log
