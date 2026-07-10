@@ -2,7 +2,10 @@ services:
   - type: web
     name: monkey-backend
     runtime: docker
-    plan: starter
+    # TODO: switch to `starter` (or higher) before real store submission.
+    # Free tier sleeps after 15 min idle and cold-starts slowly (JVM/Okt
+    # init on top of the base cold start) — fine for now, not for prod.
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     region: singapore
