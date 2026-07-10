@@ -20,7 +20,7 @@ Monkey(이하 "앱")는 사용자의 꿈을 기록하고 전통 해몽에 기반
 - **인터넷**: 해몽 생성을 위해 서버 및 OpenAI와 통신할 때 사용됩니다.
 
 ## 4. 제3자 제공
-- 해몽 생성 목적으로 꿈 텍스트가 **OpenAI**로 전송됩니다. OpenAI의 데이터 처리에 대해서는 OpenAI의 정책을 따릅니다.
+- 해몽 생성 목적으로 꿈 텍스트가 **OpenAI**로 전송됩니다. OpenAI는 표준 API 정책상 남용 방지 목적으로 전송된 데이터를 최대 30일간 보관할 수 있으며, 그 이후에는 삭제됩니다. 자세한 내용은 OpenAI의 정책을 따릅니다.
 - 그 외 광고·분석·추적 목적의 제3자 데이터 공유는 하지 않습니다.
 
 ## 5. 광고·추적
@@ -61,7 +61,7 @@ Monkey ("the App") lets you record your dreams and provides interpretations grou
 - **Internet**: used to communicate with the server and OpenAI to generate interpretations.
 
 ## 4. Third parties
-- Dream text is sent to **OpenAI** for interpretation, subject to OpenAI's policies.
+- Dream text is sent to **OpenAI** for interpretation. Under OpenAI's standard API policy, transmitted data may be retained for up to 30 days for abuse-monitoring purposes before deletion. See OpenAI's policies for details.
 - No data is shared with third parties for advertising, analytics, or tracking.
 
 ## 5. Advertising & tracking
