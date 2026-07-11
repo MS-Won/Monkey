@@ -138,5 +138,35 @@ $store.Save("D:\00 My Project\01 Monkey\docs\release\store-assets\icon-512.png",
 $store.Dispose()
 Write-Output "store icon-512.png"
 
+# --- 네이티브 스플래시 로고 (둥근 모서리, 투명 배경) ---
+# splash_background.xml이 중앙에 얹는 마크. 어두운 스플래시 배경 위에 뜨도록 투명 모서리.
+$SLOGO = 512
+$slog = New-Object System.Drawing.Bitmap($SLOGO, $SLOGO)
+$sg = [System.Drawing.Graphics]::FromImage($slog)
+$sg.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$sg.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$sg.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+# 둥근 사각형 클립
+$rad = [double]($SLOGO * 0.17)
+$d = [double](2 * $rad)
+$rp = New-Object System.Drawing.Drawing2D.GraphicsPath
+$rp.AddArc(0, 0, $d, $d, 180, 90)
+$rp.AddArc($SLOGO - $d, 0, $d, $d, 270, 90)
+$rp.AddArc($SLOGO - $d, $SLOGO - $d, $d, $d, 0, 90)
+$rp.AddArc(0, $SLOGO - $d, $d, $d, 90, 90)
+$rp.CloseFigure()
+$sg.SetClip($rp)
+# 흰 프레임 크롭한 일러스트를 꽉 차게
+$sw = $orig.Width; $sh = $orig.Height
+$sx = [single]($sw * $SRC_CROP); $sy = [single]($sh * $SRC_CROP)
+$swi = [single]($sw * (1.0 - 2.0 * $SRC_CROP)); $shi = [single]($sh * (1.0 - 2.0 * $SRC_CROP))
+$sdest = New-Object System.Drawing.Rectangle(0, 0, $SLOGO, $SLOGO)
+$sg.DrawImage($orig, $sdest, $sx, $sy, $swi, $shi, [System.Drawing.GraphicsUnit]::Pixel)
+$sg.Dispose(); $rp.Dispose()
+$splashPath = Join-Path $resRoot 'drawable\splash_logo.png'
+$slog.Save($splashPath, [System.Drawing.Imaging.ImageFormat]::Png)
+$slog.Dispose()
+Write-Output "splash_logo.png (512, rounded)"
+
 $orig.Dispose()
 Write-Output "DONE"

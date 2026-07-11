@@ -6,9 +6,9 @@
 
     <!-- 중앙 마스코트 마크 (네이티브 스플래시는 JS/애니메이션 실행 전이라 정적 표시) -->
     <item
-        android:width="160dp"
-        android:height="160dp"
+        android:width="180dp"
+        android:height="180dp"
         android:gravity="center"
-        android:drawable="@drawable/ic_launcher_foreground" />
+        android:drawable="@drawable/splash_logo" />
 
 </layer-list>
