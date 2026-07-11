@@ -41,3 +41,23 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - [아키타입 카드 30종 정의](../docs/design/archetype-cards.md) — 카드 데이터(코드) 단일 소스
 - 카드 일러스트 생성: `scripts/gen-card-art.py` (무료 Pollinations FLUX 기본, provider 교체 가능) → `frontend/assets/images/cards/`, `frontend/src/data/cardArt.ts` 매핑
 
+## Progress (2026-07-10)
+
+> 상세 로그는 auto-memory `project_monkey_status.md`(추가 12~14) 참고. 여기선 현황만.
+
+**이번 세션 완료**
+- 카드 30장 한글 라벨을 `img/` 원본 위에 합성 교체(`scripts/apply-card-labels.py`). 라벨 디자인 최종=**투명 배경+골드 가로줄 배너+아이보리 세리프(외곽 stroke)**.
+- `DreamCard` 앞면 오버레이/스크림 제거(이미지에 텍스트 구움), 하단탭 "꿈카드"→"꿈기록", `FanCarousel` 중앙 카드 확대.
+- `StatsScreen`: 상단 2카드 가운데 정렬, 키워드 한글화(`resolveArchetypeCard().nameKo`), 의미(meaning/essence/polarity) 기반 조언 + 받침 조사 처리.
+- **출시 준비(Android 클로즈드 테스트)**: 백엔드 컨테이너화(`backend/Dockerfile`·`/health`·`PORT`), 앱 `__DEV__` 서버표시, `RECORD_AUDIO`, 앱명 `Monkey`, `applicationId=com.xellos0304.monkey`, 릴리스 서명 설정, `docs/legal/privacy-policy.md`·`docs/release/{store-listing,RELEASE}.md`. tsc 0오류.
+- **GitHub 전체 푸시 완료**(`MS-Won/Monkey` main). `.env`/node_modules/키스토어는 gitignore라 다른 PC에서 별도 준비 필요.
+
+**다음(진행 중) — `docs/release/RELEASE.md`가 마스터 가이드**
+1. **Render로 백엔드 배포**(사용자 진행 중): New Web Service → repo 연결, Root Dir `backend`, Docker, env `OPENAI_API_KEY`+`JAVA_TOOL_OPTIONS=-Xmx256m`, Health `/health`. → HTTPS URL 받으면 검증 후,
+2. 루트 `.env` `SERVER_BASE_URL`을 그 URL로 교체, 3. 업로드 키스토어 생성·백업, 4. `gradlew bundleRelease` AAB, 5. 방침 URL 호스팅, 6. Play Console 클로즈드 테스트.
+
+**확정 결정(재질문 불필요)**
+- 플랫폼: Android 먼저, iOS는 이후 EAS 클라우드 빌드. 출시 단계: 클로즈드 테스트 먼저.
+- 백엔드: 현 Flask+Okt 구조 그대로 컨테이너 호스팅(Supabase는 계정/동기화 필요 시 후속).
+- 앱명 `Monkey`, `applicationId=com.xellos0304.monkey`(영구).
+
