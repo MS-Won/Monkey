@@ -54,6 +54,35 @@ BLACKLIST_PHRASES = [
 # 분리 판단 기준: 동사 개수 >= 2 이면 GPT 분리
 VERB_SPLIT_THRESHOLD = 2
 
+PRIVACY_POLICY_HTML = """
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>Monkey 개인정보처리방침</title></head><body style="font-family:sans-serif;max-width:640px;margin:40px auto;line-height:1.6">
+<h1>Monkey 개인정보처리방침</h1>
+<p>최종 수정일: 2026-07-17</p>
+<h2>1. 수집하는 정보</h2>
+<p>Monkey는 사용자가 입력한 꿈 내용(텍스트 또는 음성 인식 결과)을 분석 목적으로 서버에 전송합니다.
+음성 데이터 자체는 서버에 저장되지 않으며, 인식된 텍스트만 처리됩니다.</p>
+<h2>2. 정보의 이용 목적</h2>
+<p>입력된 문장은 OpenAI API를 통해 해몽 분석 및 요약을 생성하는 데에만 사용되며,
+분석 결과와 사용자의 꿈 일기는 사용자의 기기 내 로컬 데이터베이스(SQLite)에 저장됩니다.
+서버는 분석 요청을 처리한 뒤 해당 요청 데이터를 보관하지 않습니다.</p>
+<h2>3. 제3자 제공</h2>
+<p>분석을 위해 입력 문장이 OpenAI(미국)로 전송됩니다. 그 외 제3자에게 정보를 제공하지 않습니다.</p>
+<h2>4. 데이터 보관 및 삭제</h2>
+<p>꿈 일기, 프로필 정보는 사용자 기기에만 저장됩니다. 앱을 삭제하면 해당 데이터도 함께 삭제됩니다.</p>
+<h2>5. 문의</h2>
+<p>개인정보 관련 문의: {contact_email}</p>
+</body></html>
+"""
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
+
+@app.get("/privacy")
+def privacy():
+    return PRIVACY_POLICY_HTML, 200, {"Content-Type": "text/html; charset=utf-8"}
+
 
 # =========================
 # 1) 비용 계산 (최신 단가 기준)
@@ -456,6 +485,6 @@ def summary():
 # 9) 서버 실행
 # =========================
 if __name__ == "__main__":
-    # 포트는 5001 고정 (합의)
-    # host=0.0.0.0 로 해야 폰/에뮬레이터에서 PC로 접근 가능
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    port = int(os.getenv("PORT", "5001"))
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)
