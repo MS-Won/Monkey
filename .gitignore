@@ -18,5 +18,7 @@ android/app/.cxx/
 *.aab
 
 android/app/debug.keystore
+android/app/*.keystore
+android/keystore.properties
 android/app/src/main/assets/*.db
 dreamlog.txt
