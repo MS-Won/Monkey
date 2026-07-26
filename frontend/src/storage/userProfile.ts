@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
- * ✅ 성별(선택)
- * - 기존 유지
+ * ✅ 성별
+ * - 더 이상 입력받지 않는다(운세 비중을 성별로 나눌 근거가 없다).
+ * - 과거에 저장된 값을 읽기 위해서만 남겨둔다. 지우는 마이그레이션은
+ *   위험 대비 이득이 없다.
  */
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
@@ -44,19 +46,15 @@ const KEY_JOB_GROUP = 'user.jobGroup';
  * - 앞으로는 ageGroup/jobGroup도 선택적으로 저장 가능하게 확장
  *
  * 사용 예)
- * 1) saveUserProfile({ name: '문섭', gender: 'MALE' })
- * 2) saveUserProfile({ name: '문섭', gender: 'MALE', ageGroup: 'THIRTIES', jobGroup: 'EMPLOYEE' })
+ * 1) saveUserProfile({ name: '문섭' })
+ * 2) saveUserProfile({ name: '문섭', ageGroup: 'THIRTIES', jobGroup: 'EMPLOYEE' })
  */
 export async function saveUserProfile(profile: {
   name: string;
-  gender: Gender;
   ageGroup?: AgeGroup;
   jobGroup?: JobGroup;
 }) {
-  const pairs: [string, string][] = [
-    [KEY_NAME, profile.name],
-    [KEY_GENDER, profile.gender],
-  ];
+  const pairs: [string, string][] = [[KEY_NAME, profile.name]];
 
   // ✅ 값이 있을 때만 저장(없으면 기존 값 유지가 아니라, "저장 안 함" 처리)
   // -> 만약 "없으면 지우기"가 필요하면 clearUserProfile 또는 별도 함수로 처리

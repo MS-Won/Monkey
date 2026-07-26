@@ -20,7 +20,7 @@ import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { Spacing, Radius } from '../theme/spacing';
 
-import type { Gender, AgeGroup, JobGroup } from '../storage/userProfile';
+import type { AgeGroup, JobGroup } from '../storage/userProfile';
 import { saveUserProfile, loadUserProfile } from '../storage/userProfile';
 import Card from '../components/Card';
 import TextField from '../components/TextField';
@@ -36,7 +36,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OnboardingProfile'>;
 
 // ✅ 현재 어떤 선택창을 열지 구분하는 타입
-type OpenSheet = 'gender' | 'age' | 'job' | null;
+type OpenSheet = 'age' | 'job' | null;
 
 // ✅ 공용 선택 아이템 타입
 type SelectItem<T extends string> = {
@@ -53,7 +53,6 @@ export default function ProfileScreen() {
 
   // ✅ 사용자 입력 상태
   const [name, setName] = useState('');
-  const [gender, setGender] = useState<Gender | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
   const [jobGroup, setJobGroup] = useState<JobGroup | null>(null);
 
@@ -64,7 +63,6 @@ export default function ProfileScreen() {
     (async () => {
       const saved = await loadUserProfile();
       if (saved.name) setName(saved.name);
-      if (saved.gender) setGender(saved.gender);
       if (saved.ageGroup) setAgeGroup(saved.ageGroup);
       if (saved.jobGroup) setJobGroup(saved.jobGroup);
     })();
@@ -78,23 +76,15 @@ export default function ProfileScreen() {
 
   // ✅ 입력 완료 여부 계산
   const nameOk = useMemo(() => name.trim().length >= 1, [name]);
-  const genderOk = useMemo(() => gender !== null, [gender]);
   const ageOk = useMemo(() => ageGroup !== null, [ageGroup]);
   const jobOk = useMemo(() => jobGroup !== null, [jobGroup]);
 
   // ✅ Toss 스타일 누적 공개 조건
-  const showGender = nameOk;
-  const showAge = nameOk && genderOk;
-  const showJob = nameOk && genderOk && ageOk;
-  const canFinish = nameOk && genderOk && ageOk && jobOk;
+  const showAge = nameOk;
+  const showJob = nameOk && ageOk;
+  const canFinish = nameOk && ageOk && jobOk;
 
   // ✅ 선택 목록
-  const genderItems: SelectItem<Gender>[] = [
-    { key: 'MALE', label: '남성' },
-    { key: 'FEMALE', label: '여성' },
-    { key: 'OTHER', label: '기타' },
-  ];
-
   const ageItems: SelectItem<AgeGroup>[] = [
     { key: 'TEENS', label: '10대' },
     { key: 'TWENTIES', label: '20대' },
@@ -142,7 +132,6 @@ export default function ProfileScreen() {
 
   // ✅ 현재 열려 있는 선택창 제목
   const modalTitle = useMemo(() => {
-    if (openSheet === 'gender') return '성별 선택';
     if (openSheet === 'age') return '나이대 선택';
     if (openSheet === 'job') return '직업 선택';
     return '';
@@ -150,7 +139,6 @@ export default function ProfileScreen() {
 
   // ✅ 현재 열려 있는 선택창 목록
   const modalItems = useMemo(() => {
-    if (openSheet === 'gender') return genderItems;
     if (openSheet === 'age') return ageItems;
     if (openSheet === 'job') return jobItems;
     return [];
@@ -158,29 +146,16 @@ export default function ProfileScreen() {
 
   // ✅ 현재 선택된 값
   const selectedValue = useMemo(() => {
-    if (openSheet === 'gender') return gender;
     if (openSheet === 'age') return ageGroup;
     if (openSheet === 'job') return jobGroup;
     return null;
-  }, [openSheet, gender, ageGroup, jobGroup]);
+  }, [openSheet, ageGroup, jobGroup]);
 
   // ✅ 선택 처리
   const onSelectItem = (key: string) => {
     animate();
 
-    // 1) 성별 선택
-    if (openSheet === 'gender') {
-      setGender(key as Gender);
-
-      // ✅ 상위 값 변경 시 하위 값 초기화
-      setAgeGroup(null);
-      setJobGroup(null);
-
-      closePicker();
-      return;
-    }
-
-    // 2) 나이대 선택
+    // 1) 나이대 선택
     if (openSheet === 'age') {
       setAgeGroup(key as AgeGroup);
 
@@ -191,7 +166,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    // 3) 직업 선택
+    // 2) 직업 선택
     if (openSheet === 'job') {
       setJobGroup(key as JobGroup);
       closePicker();
@@ -201,12 +176,11 @@ export default function ProfileScreen() {
 
   // ✅ 저장 버튼
   const finish = async () => {
-    if (!canFinish || !gender || !ageGroup || !jobGroup) return;
+    if (!canFinish || !ageGroup || !jobGroup) return;
 
     try {
       await saveUserProfile({
         name: name.trim(),
-        gender,
         ageGroup,
         jobGroup,
       });
@@ -237,7 +211,8 @@ export default function ProfileScreen() {
           <View style={styles.header}>
             <Text style={Typography.h1}>프로필</Text>
             <Text style={[Typography.caption, styles.headerDesc]}>
-              프로필 정보는 현재 해몽 내용에 반영되지 않아요. 추후 다른 기능에 사용될 예정입니다.
+              프로필은 기기에만 저장되고 서버로 전송되지 않아요. 해몽 결과에서 어떤 항목을
+              먼저 보여줄지 정하는 데만 쓰입니다.
             </Text>
           </View>
 
@@ -251,7 +226,6 @@ export default function ProfileScreen() {
               // ✅ 이름을 다시 지우면 아래 선택들도 초기화
               if (value.trim().length === 0) {
                 animate();
-                setGender(null);
                 setAgeGroup(null);
                 setJobGroup(null);
               }
@@ -260,23 +234,7 @@ export default function ProfileScreen() {
             variant="bordered"
           />
 
-          {/* 2. 성별 */}
-          {showGender && (
-            <Card style={styles.card}>
-              <Text style={styles.label}>성별</Text>
-
-              <Pressable
-                onPress={() => openPicker('gender')}
-                style={({ pressed }) => [styles.field, pressed && styles.pressed]}
-              >
-                <Text style={styles.fieldText}>
-                  {genderOk ? getLabel(genderItems, gender) : '선택해주세요'}
-                </Text>
-              </Pressable>
-            </Card>
-          )}
-
-          {/* 3. 나이대 */}
+          {/* 2. 나이대 */}
           {showAge && (
             <Card style={styles.card}>
               <Text style={styles.label}>나이대</Text>
@@ -292,7 +250,7 @@ export default function ProfileScreen() {
             </Card>
           )}
 
-          {/* 4. 직업 */}
+          {/* 3. 직업 */}
           {showJob && (
             <Card style={styles.card}>
               <Text style={styles.label}>직업</Text>
@@ -318,7 +276,7 @@ export default function ProfileScreen() {
           />
 
           <Text style={[Typography.caption, styles.footer]}>
-            * 현재 프로필 정보는 해몽 결과에 영향을 주지 않습니다.
+            * 해몽 내용 자체는 프로필과 무관하게 꿈 내용만으로 만들어집니다.
           </Text>
         </ScrollView>
 

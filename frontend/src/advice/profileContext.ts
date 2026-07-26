@@ -1,9 +1,8 @@
 // frontend/src/advice/profileContext.ts
 // ------------------------------------------------------
-// ✅ Profile Context(나이/성별/직업 등)를 "문장"으로 만들어 GPT 프롬프트에 넣기 위한 유틸
-// ✅ 중요한 목표:
-// 1) 프로필 정보가 없어도(빈 값이어도) 절대 앱이 깨지지 않게
-// 2) advice category/engine 없이, "참고용 컨텍스트 텍스트"만 제공
+// ✅ 프로필(나이대/직업)을 화면에 보여줄 한글 라벨로 바꾸는 유틸
+// ✅ 프로필은 서버로 전송하지 않는다. 여기 있는 값은 전부 기기 안에서만 쓴다.
+// ✅ 프로필 정보가 없어도(빈 값이어도) 절대 앱이 깨지지 않게 한다.
 // ------------------------------------------------------
 
 // 나이대(선택값)
@@ -25,17 +24,9 @@ export type JobGroup =
   | 'RETIRED'        // 은퇴
   | 'OTHER';         // 기타
 
-// 성별(선택값) - 프로젝트에서 이미 다른 형태를 쓰면, 여기만 맞춰주면 됩니다.
-export type Gender =
-  | 'MALE'
-  | 'FEMALE'
-  | 'OTHER'
-  | 'NONE'; // 선택 안 함/비공개
-
-// ResultScreen에 들어갈 "프롬프트용 프로필"
+// 프로필 표시용 타입
 export type UserProfileForPrompt = {
   name?: string;          // 예: "문섭"
-  gender?: Gender;        // 예: "MALE"
   ageGroup?: AgeGroup;    // 예: "THIRTIES"
   jobGroup?: JobGroup;    // 예: "EMPLOYEE"
 };
@@ -55,16 +46,6 @@ export function formatAgeGroup(ageGroup?: AgeGroup): string {
   }
 }
 
-export function formatGender(gender?: Gender): string {
-  switch (gender) {
-    case 'MALE': return '남성';
-    case 'FEMALE': return '여성';
-    case 'OTHER': return '기타';
-    case 'NONE': return ''; // 미선택은 공란 처리
-    default: return '';
-  }
-}
-
 export function formatJobGroup(jobGroup?: JobGroup): string {
   switch (jobGroup) {
     case 'STUDENT': return '학생';
@@ -79,28 +60,7 @@ export function formatJobGroup(jobGroup?: JobGroup): string {
 }
 
 // ------------------------------------------------------
-// ✅ 핵심 함수 1) "프롬프트에 넣을 컨텍스트 한 줄" 생성
-// - 아무 정보도 없으면 ""(빈 문자열) 반환
-// - 예: "사용자 맥락(참고용): 30대 · 남성 · 직장인"
-// ------------------------------------------------------
-export function buildProfileContextForPrompt(profile?: UserProfileForPrompt): string {
-  if (!profile) return '';
-
-  const ageText = formatAgeGroup(profile.ageGroup);
-  const genderText = formatGender(profile.gender);
-  const jobText = formatJobGroup(profile.jobGroup);
-
-  // 비어있는 값은 제거하고 연결
-  const parts = [ageText, genderText, jobText].filter(Boolean);
-
-  // 아무 것도 없으면 컨텍스트 라인을 아예 넣지 않음
-  if (parts.length === 0) return '';
-
-  return `사용자 맥락(참고용): ${parts.join(' · ')}`;
-}
-
-// ------------------------------------------------------
-// ✅ 핵심 함수 2) "이름 호칭" 가공 (선택)
+// ✅ "이름 호칭" 가공 (선택)
 // - 없으면 "" 반환
 // - 예: "문섭님"
 // ------------------------------------------------------

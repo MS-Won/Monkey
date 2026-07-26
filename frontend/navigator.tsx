@@ -13,7 +13,6 @@ import ResultScreen from './src/screens/ResultScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import DiaryScreen from './src/screens/DiaryScreen';
 import DiaryDetailScreen from './src/screens/DiaryDetailScreen';
-import type { AgeGroup, JobGroup, Gender } from './src/advice/profileContext'; 
 
 // ✅ Root Stack 네비게이션 타입 정의
 export type RootStackParamList = {
@@ -29,14 +28,7 @@ export type RootStackParamList = {
   Input: { dreamText?: string; mode?: 'text' | 'voice' };
   DiaryDetail: { id: number };
   Result: {
-    sentenceList: string[];
     dreamText: string;
-    usedGPTInSplit: boolean;
-    personName?: string;
-        // ✅ 추가: 프로필 컨텍스트(없어도 되게 optional)
-    gender?: Gender;
-    ageGroup?: AgeGroup;
-    jobGroup?: JobGroup;
   };
 };
 
