@@ -23,6 +23,9 @@ from konlpy.tag import Okt
 # 전통 해몽 상징 사전(경량 RAG) — 매칭된 상징 의미를 /interpret 근거로 주입
 import dream_lexicon
 
+# /reading 응답 검증(순수 함수). 네트워크를 타지 않으므로 단위 테스트가 가능하다.
+import reading_schema
+
 
 # =========================
 # 0) 기본 설정
@@ -96,6 +99,29 @@ PERSONA_SYSTEM = (
     "어색한 조사·어미를 쓰지 않는다. 실제 한국 사람이 마주 앉아 말하듯 매끄럽고 자연스럽게 쓴다.\n"
     "9) 추상적으로만 읊지 않는다. 상징이 상담자의 '실제 삶'(일·관계·돈·건강·마음)에서 "
     "구체적으로 무엇을 뜻하는지, 손에 잡히는 일상의 언어로 분명하게 짚어 준다."
+)
+
+
+# /reading 전용 지시. PERSONA_SYSTEM 뒤에 붙어 출력 형식을 규정한다.
+# OpenAI JSON 모드는 메시지에 "json"이라는 단어가 있어야 동작한다.
+READING_INSTRUCTION = (
+    "아래 형식의 JSON 하나만 출력하세요. 다른 텍스트는 붙이지 마세요.\n"
+    "{\n"
+    '  "summary": "종합 해몽",\n'
+    '  "oneLine": "오늘의 한마디",\n'
+    '  "categories": [ { "key": "...", "body": "..." } ]\n'
+    "}\n\n"
+    "규칙:\n"
+    "- summary: 꿈 전체를 하나의 이야기로 엮은 종합 해몽. 4~6문장.\n"
+    "- oneLine: 오늘 하루 마음에 품을 말 한 문장.\n"
+    "- categories: key는 반드시 다음 중에서만 고른다 — "
+    "luck(행운), caution(주의운), relationship(인간관계), wealth(재물운), "
+    "work(직장·학업운), health(건강운).\n"
+    "- **꿈에 실제 근거가 있는 것만 2~4개** 고른다. 근거가 없으면 그 항목을 넣지 않는다. "
+    "칸을 채우려고 없는 이야기를 지어내지 않는다.\n"
+    "- 각 body는 2~3문장으로 짧게 쓴다.\n"
+    "- 제목·이모지·마크다운 기호를 body 안에 넣지 않는다. 본문 문장만 쓴다.\n"
+    "- 같은 key를 두 번 쓰지 않는다."
 )
 
 
@@ -195,7 +221,12 @@ def unique_keep_order(items: List[str]) -> List[str]:
 # 3) OpenAI 호출 래퍼
 # =========================
 
-def openai_chat(messages: list, model: str = CHAT_MODEL, temperature: float = 0.7) -> Tuple[str, int, int, float]:
+def openai_chat(
+    messages: list,
+    model: str = CHAT_MODEL,
+    temperature: float = 0.7,
+    response_format: dict = None,
+) -> Tuple[str, int, int, float]:
     """
     OpenAI Chat Completions 호출
     반환: (result_text, input_tokens, output_tokens, total_cost_usd)
@@ -210,6 +241,8 @@ def openai_chat(messages: list, model: str = CHAT_MODEL, temperature: float = 0.
         "messages": messages,
         "temperature": temperature,
     }
+    if response_format is not None:
+        payload["response_format"] = response_format
 
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     r.raise_for_status()
@@ -560,7 +593,91 @@ def summary():
 
 
 # =========================
-# 9) 헬스체크 (호스트 워밍업/모니터링용)
+# 9) API: /reading  (단일 호출 해몽)
+# =========================
+
+@app.post("/reading")
+def reading():
+    """
+    입력: { "text": "<꿈 전문>" }
+    출력: { summary, oneLine, categories[], symbols[], inputToken, outputToken, totalCostUsd }
+
+    기존 /split + /interpret×N + /summary 를 한 번의 GPT 호출로 대체한다.
+    프로필은 받지 않는다(기기 밖으로 나가는 것은 꿈 텍스트뿐).
+    """
+    chk = require_key()
+    if chk:
+        return chk
+
+    body = request.get_json(silent=True) or {}
+    text = normalize_sentence(body.get("text") or "")
+
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    too_long = check_text_length(text)
+    if too_long:
+        return too_long
+
+    # 전통 해몽 사전 매칭은 꿈 전문에 대해 1회만 수행한다.
+    matched = dream_lexicon.match_symbols(text, okt, normalize_sentence)
+    grounding = dream_lexicon.build_grounding_block(matched)
+
+    if grounding:
+        grounding_section = (
+            "\n\n[전통 해몽 근거] (아래 상징 의미를 반드시 최우선으로 적용하세요)\n"
+            f"{grounding}\n"
+            "위 근거에 없는 요소(고유명사·현대 사물 등)는 무리하게 상징으로 풀지 말고 "
+            "장면의 배경으로 담담히 다뤄 주세요."
+        )
+    else:
+        grounding_section = (
+            "\n\n(이 꿈에는 전통 해몽 사전에 등재된 상징이 뚜렷하지 않습니다. "
+            "상징을 억지로 지어내지 말고, 꿈의 정서와 분위기를 전통 어조로 담백하게 풀어 주세요.)"
+        )
+
+    messages = [
+        {"role": "system", "content": PERSONA_SYSTEM + "\n\n" + READING_INSTRUCTION},
+        {
+            "role": "user",
+            "content": (
+                f'상담자가 들려준 꿈: "{text}"\n'
+                "이 꿈을 전통 해몽으로 풀어 주세요."
+                f"{grounding_section}"
+            ),
+        },
+    ]
+
+    try:
+        raw_text, in_tok, out_tok, cost = openai_chat(
+            messages,
+            model=CHAT_MODEL,
+            temperature=0.65,
+            response_format={"type": "json_object"},
+        )
+        parsed = json.loads(raw_text)
+        result = reading_schema.normalize_reading(parsed)
+    except reading_schema.ReadingValidationError as e:
+        return jsonify({"error": f"invalid reading: {e}"}), 500
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"json parse failed: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "summary": result["summary"],
+        "oneLine": result["oneLine"],
+        "categories": result["categories"],
+        # 상징은 모델이 아니라 사전 매칭에서 가져온다(결정적·무료).
+        "symbols": dream_lexicon.matched_headwords(matched),
+        "inputToken": in_tok,
+        "outputToken": out_tok,
+        "totalCostUsd": cost,
+    })
+
+
+# =========================
+# 10) 헬스체크 (호스트 워밍업/모니터링용)
 # =========================
 @app.get("/health")
 def health():
@@ -569,7 +686,7 @@ def health():
 
 
 # =========================
-# 10) 서버 실행
+# 11) 서버 실행
 # =========================
 # 프로덕션(컨테이너)에서는 gunicorn이 `keyword_server:app`을 직접 구동하므로
 # 아래 app.run 블록은 로컬 개발 실행 전용이다.
