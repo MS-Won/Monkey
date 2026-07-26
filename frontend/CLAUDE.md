@@ -41,9 +41,79 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - [아키타입 카드 30종 정의](../docs/design/archetype-cards.md) — 카드 데이터(코드) 단일 소스
 - 카드 일러스트 생성: `scripts/gen-card-art.py` (무료 Pollinations FLUX 기본, provider 교체 가능) → `frontend/assets/images/cards/`, `frontend/src/data/cardArt.ts` 매핑
 
-## Progress (2026-07-19)
+## Progress (2026-07-26)
 
-> 상세 로그는 auto-memory `project_monkey_status.md`(추가 15~18) 참고. 여기선 현황만.
+> 상세 로그는 auto-memory `project_monkey_status.md`(추가 15~23) 참고. 여기선 현황만.
+
+### ▶ 다음 세션에서 바로 할 일
+
+**해몽 카테고리 개편 구현.** 설계·계획 문서가 이미 커밋돼 있고 코드는 아직 손대지 않았다.
+
+- 스펙: `docs/superpowers/specs/2026-07-26-reading-categories-design.md`
+- 계획: `docs/superpowers/plans/2026-07-26-reading-categories.md` — **8태스크 45스텝, 각 스텝에 실제 코드 포함**
+- 실행 방식(서브에이전트 vs 인라인)만 정하면 Task 1부터 바로 시작 가능
+
+개편 요지: GPT 호출 7회 → 1회(단일 `/reading`). 문장별 해몽을 없애고 의미 카테고리
+(행운/주의운/인간관계/재물운/직장·학업운/건강운 중 근거 있는 2~4개 + 종합 해몽 + 오늘의
+한마디)로 바꾼다. 카드를 먼저 보여주고 탭하면 해몽·카테고리가 열린다. 프로필은 서버로
+보내지 않고 기기에서 순서만 조정한다. 성별 필드는 제거한다.
+
+실측 근거: `/interpret` 한 문장 호출 입력이 865토큰인데 문장 자체는 20토큰뿐이고 나머지는
+`PERSONA_SYSTEM`이 문장마다 재전송되는 것. 5문장 꿈 = 7회 호출 / $0.0017 / 7왕복
+→ 목표 1회 / ~$0.0006 / 1왕복.
+
+### 이번 세션(07-26) 완료
+
+**Play Console 앱 설정 2/11 → 11/11 완료** (브라우저 자동화로 직접 입력)
+- 방침URL, 로그인 세부정보(제한없음), 광고(없음), **콘텐츠 등급 제출완료**(ESRB E ·
+  PEGI 3 · GRAC 전체이용가 — 전 기관 최저 연령), **타겟층 만 18세 이상만**,
+  데이터 보안, 정부앱(아니오), 광고ID(사용안함), 카테고리(라이프스타일)·연락처,
+  스토어 등록정보(문구는 자동·그래픽은 사용자 업로드)
+- Play Console 함정: 각 폼에서 **저장을 눌러야 "다음"이 활성화**된다. IARC 약관
+  체크박스는 새로고침하면 풀리고, 법적 동의라 사용자가 직접 눌러야 한다.
+
+**⚠️ 개인정보 불일치 수정** — 방침엔 "호칭은 서버 전송 안 함"인데 `ResultScreen.tsx:147`이
+`상담자 호칭: OO`을 `/summary`→OpenAI로 보내고 있었다. 코드에서 제거(커밋 `ee15508`).
+AAB JS 번들에서 문자열 0건 검증. 부수효과로 **해몽 본문이 더 이상 이름을 부르지 않는다.**
+
+**versionCode 2** — versionCode 1은 2026-07-18 Play 업로드로 소진됐다(재사용 불가).
+`app-release.aab` 재빌드 완료(07-26 20:02, 병합 매니페스트 `versionCode="2"` 검증).
+
+**원숭이 그래픽 통일** — 앱 내부는 이미 새 점술가 원숭이였고 **스토어 그래픽만 옛
+라인아트**였다(`gen-store-graphics.ps1`의 `Draw-Mascot`가 코드로 그림). 피처 그래픽
+재생성 + `scripts/refresh-splash-screenshot.py` 신규로 스플래시 스크린샷 합성.
+`gen-store-graphics.ps1`에서 `icon-512.png` 생성 코드 제거(덮어쓰기 사고 방지).
+
+### 남은 일
+
+**출시(사용자 수동)** — 치트시트 `docs/release/play-console-checklist.md`
+1. Play 비공개 테스트에 AAB 업로드. **단, 카테고리 개편을 먼저 끝내고 versionCode 3으로
+   한 번에 올리는 편이 빌드를 아낀다.**
+2. 테스터 12명 — 공식 문서상 **14일 연속 옵트인**, 중간 옵트아웃 시 리셋.
+   **개발자 본인 계정 포함 가능 여부는 문서에 명시 없음** → 본인1+타인11 권장.
+3. Render `starter` 실제 적용(대시보드, 결제 발생). `/health` 콜드스타트 **14.6초 실측**.
+4. GitHub push — 커밋 8건이 로컬에만 있다.
+
+**개편 이후 정리** — 구 엔드포인트(`/split`·`/interpret`·`/summary`·`/embed`) 삭제,
+`screenshot-6-interpretation.png` 재캡처(해몽 화면이 바뀜).
+
+### 확정 결정(재질문 불필요)
+
+- 플랫폼: Android 먼저, iOS는 이후 EAS 클라우드 빌드. 출시: 클로즈드 테스트 먼저.
+- 백엔드: Flask+Okt 그대로 Render 컨테이너. 모델 `gpt-4o-mini`.
+- 앱명 `Monkey`, `applicationId=com.mswon.monkey`(영구). 아이콘=원숭이 점술가 일러스트.
+- **프로필을 서버로 전송하지 않는다.** 기기 밖으로 나가는 건 꿈 텍스트뿐 — 방침과 Play
+  데이터 보안 신고를 지키기 위한 제약.
+- **이모지를 쓰지 않는다**(진정성 저하). 카테고리 제목은 한글 텍스트만.
+- **성별은 쓰지 않고 프로필에서도 제거**한다(운세 비중을 성별로 나눌 근거 없음).
+- 캐시는 전면 제거. 꿈 단위 유사도 매칭은 "다르게 쓴 꿈에 같은 해몽" 문제를 만든다.
+  OpenAI 프롬프트 캐싱도 해당 없음(최소 1,024토큰인데 정적 프롬프트가 ~700).
+- 서버 측 캐시 불가 — 꿈 텍스트를 서버에 저장해야 하므로 방침 위반.
+
+---
+
+<details>
+<summary>이전 현황 (2026-07-19)</summary>
 
 **출시 파이프라인 거의 완료 — 남은 건 사용자의 Play Console 업로드 하나뿐**
 - **백엔드 배포**: Render `https://monkey-backend-htu8.onrender.com` 가동(루트 `.env` `SERVER_BASE_URL` 이 주소로 교체됨, 릴리스 번들에 인라인). `/health`·`/interpret` 프로덕션 검증 완료.
@@ -64,4 +134,6 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - 플랫폼: Android 먼저, iOS는 이후 EAS 클라우드 빌드. 출시: 클로즈드(비공개) 테스트 먼저.
 - 백엔드: 현 Flask+Okt 구조 그대로 Render 컨테이너 호스팅. 해몽 모델=gpt-4o-mini.
 - 앱명 `Monkey`, `applicationId=com.mswon.monkey`(Play 등록 기준 영구). 아이콘=원숭이 점술가 일러스트.
+
+</details>
 
