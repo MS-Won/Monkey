@@ -48,6 +48,31 @@ def _entry_keys(entry: Dict) -> List[str]:
     ]
 
 
+# Okt가 동사 활용형을 명사로 잘못 태깅하는 경우를 걸러낸다.
+# 예: "금가락지를 쥐여 주셨다"의 '쥐여'(쥐다)를 명사 '쥐'(rat)로 태깅한다.
+# "주먹을 쥔"은 동사 '쥐다'로 바르게 잡히므로 여기 넣지 않아도 된다.
+#
+# 키를 그대로 지우면 안 되는 이유: 한 꿈에 진짜 쥐와 '쥐여 주다'가 같이 나올 수 있다.
+# 그래서 활용형만 지운 뒤에도 키가 남아 있는지를 본다.
+_VERB_SURFACE_FALSE_POSITIVES: Dict[str, tuple] = {
+    "쥐": ("움켜쥐", "부여쥐", "쥐여", "쥐어", "쥐었", "쥐고", "쥐는"),
+}
+
+
+def _is_verb_false_positive(key: str, nospace: str) -> bool:
+    """key가 동사 활용형에서만 나온 오매칭이면 True."""
+    forms = _VERB_SURFACE_FALSE_POSITIVES.get(key)
+    if not forms:
+        return False
+
+    stripped = nospace
+    # 긴 형태부터 지워야 '움켜쥐고'가 '쥐고'만 지워져 잔여물이 남지 않는다.
+    for form in sorted(forms, key=len, reverse=True):
+        stripped = stripped.replace(form, "")
+
+    return key not in stripped
+
+
 def match_symbols(
     text: str,
     okt,
@@ -84,6 +109,8 @@ def match_symbols(
     for entry in _ENTRIES:
         for key in _entry_keys(entry):
             if key in tokens or (len(key) >= 2 and key in nospace):
+                if _is_verb_false_positive(key, nospace):
+                    continue  # 동사 활용형 오매칭 → 이 키는 근거로 삼지 않는다
                 matched.append(entry)
                 break  # 이 엔트리는 이미 매칭됨 → 다음 엔트리로
 
