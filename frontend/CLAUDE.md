@@ -61,13 +61,39 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
   SQLite `cache` 테이블은 남겨둠(마이그레이션 위험 회피).
 - 에뮬레이터 실기 검증 전 항목 통과.
 
+### 이번 세션(07-27) 완료 — 정리 + 해몽 분량 2배
+
+- **해몽 분량 2배.** `summary` 4~6문장 → 8~12문장, 카테고리 `body` 2~3문장 → 4~6문장.
+  `oneLine`은 한 문장 그대로("한마디"는 길어지면 정체성이 무너진다). 분량만 늘리면 모델이
+  같은 말을 되풀이하므로 `summary`와 `body`가 서로 겹치지 말 것을 함께 지시했다.
+  실측 출력 토큰 317 → 656(2.07배), 비용 $0.00030 → $0.00062. 개편 전($0.0017)의 약 1/3.
+- **구 엔드포인트 삭제.** `/split`·`/embed`·`/interpret`·`/summary`와 전용 헬퍼·죽은 상수,
+  프론트 `logic/gpt.ts`까지. `keyword_server.py` 690줄 → 296줄. 남은 라우트는
+  `/reading`과 `/health` 둘뿐이다.
+- **`dream_lexicon` 오매칭 수정.** Okt가 "쥐여 주셨다"의 `쥐여`를 명사 `쥐`(rat)로 태깅해
+  꿈에 없는 쥐가 해몽 근거로 주입되고 있었다. 활용형만 지운 뒤에도 키가 남아 있는지 보는
+  방식이라, 한 꿈에 진짜 쥐와 '쥐여 주다'가 같이 나와도 진짜 쥐는 살아남는다.
+  `test_dream_lexicon.py` 8건 추가(백엔드 테스트 총 18건).
+- **versionCode 3 / versionName 1.1로 릴리스 AAB 재빌드 완료.** 번들 검증: Render 주소 O,
+  로컬 주소 X, `/reading` O, 구 엔드포인트 X.
+- `screenshot-6-interpretation.png` 재캡처. GitHub push 완료(커밋 22건).
+- 실기 재검증 전 항목 통과. **구 포맷(짧은 분량) 기록도 그대로 열리는 것까지 확인**했다
+  — 지난 세션에 못 채운 검증 항목이다.
+
 ### ▶ 다음 세션에서 바로 할 일
 
-1. **구 엔드포인트 삭제** — 백엔드 `/split`·`/interpret`·`/summary`·`/embed` +
-   `frontend/src/logic/gpt.ts`(이미 참조 0건인 죽은 코드). 한 커밋으로 묶는다.
-2. `docs/release/store-assets/screenshot-6-interpretation.png` 재캡처 — 해몽 화면이 바뀌었다.
-3. **versionCode 3으로 AAB 재빌드 → Play 비공개 테스트 업로드.**
-4. `dream_lexicon` 오매칭 — "금가락지를 쥐여 주셨다"에서 `쥐`를 상징으로 잡는다(기존 이슈).
+**사용자 수동 작업 2건이 유일한 잔여 항목이다** (아래 "사용자만 할 수 있는 일" 참고).
+코드 쪽은 막힌 것이 없다.
+
+### 사용자만 할 수 있는 일 (2건)
+
+1. **Play Console 비공개 테스트에 AAB 업로드 + 테스터 12명.**
+   파일: `android/app/build/outputs/bundle/release/app-release.aab` (versionCode 3, 124MB)
+   치트시트: `docs/release/play-console-checklist.md`
+   테스터는 **14일 연속 옵트인**이 필요하고 중간 옵트아웃 시 리셋된다. 본인1+타인11 권장.
+2. **Render `starter` 플랜을 대시보드에서 실제 적용.** `render.yaml`에만 반영돼 있다.
+   결제가 발생하므로 계정 소유자만 가능. 무료 플랜은 `/health` 콜드스타트가 14.6초 실측이라
+   테스터 14일 실사용 전에 올려두는 편이 낫다.
 
 ### 함정 메모
 
