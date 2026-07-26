@@ -143,8 +143,9 @@ const ResultScreen = () => {
         const drawnCard = selectArchetypeCard(dreamText, interpJoined);
         setCard(drawnCard);
 
+        // 개인정보처리방침대로 호칭(이름)은 기기 밖으로 내보내지 않는다.
+        // displayName은 화면 표시에만 쓰고 프롬프트에는 포함하지 않음.
         const structuredInput = [
-          displayName ? `상담자 호칭: ${displayName}` : '',
           `꿈 원문: ${dreamText}`,
           '',
           '문장별 해몽:',
