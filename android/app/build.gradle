@@ -88,10 +88,12 @@ android {
 
     namespace "com.monkey"
     defaultConfig {
-        applicationId "com.xellos0304.monkey"
+        applicationId "com.mswon.monkey"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // versionCode 1은 2026-07-18 Play에 업로드되어 소진됨(같은 코드 재업로드 불가).
+        // 코드/에셋을 고칠 때마다 반드시 올릴 것.
+        versionCode 2
         versionName "1.0"
     }
     signingConfigs {
