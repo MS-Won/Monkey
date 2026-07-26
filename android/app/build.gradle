@@ -92,9 +92,10 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // versionCode 1은 2026-07-18 Play에 업로드되어 소진됨(같은 코드 재업로드 불가).
+        // 2는 2026-07-26 빌드했으나 업로드 전 해몽 카테고리 개편이 들어와 폐기.
         // 코드/에셋을 고칠 때마다 반드시 올릴 것.
-        versionCode 2
-        versionName "1.0"
+        versionCode 3
+        versionName "1.1"
     }
     signingConfigs {
         debug {
