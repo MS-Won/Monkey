@@ -31,7 +31,9 @@
 ## Beta Release
 
 * [x] **[2026-07-10] 출시 준비(코드/설정/문서) 완료 — Android 클로즈드 테스트 대상** — 계획 `~/.claude/plans/lovely-launching-phoenix.md`. 백엔드 컨테이너화(`backend/Dockerfile`·`.dockerignore`·requirements 핀+gunicorn·`/health`·`PORT` env, 로컬 2차인스턴스로 /health 200 검증), 앱 `__DEV__` 서버표시 숨김, Android `RECORD_AUDIO` 선언, 앱이름 `Monkey`, `applicationId=com.xellos0304.monkey`(영구 확정), 릴리스 서명 설정(`keystore.properties` 폴백, gradle config 평가 통과), 개인정보처리방침(`docs/legal/privacy-policy.md`)·스토어문구(`docs/release/store-listing.md`)·핸드오프 가이드(`docs/release/RELEASE.md`). tsc 0오류.
-* [ ] **사용자 실행 필요(RELEASE.md 참조)**: 백엔드 배포(Render 등)+`SERVER_BASE_URL` 교체 / 업로드 키스토어 생성·백업 / `bundleRelease` AAB / 방침 URL 호스팅 / Google Play 계정·Console 클로즈드 테스트 업로드
+* [x] **[2026-07-12~19] 출시 파이프라인 실행 완료** — 백엔드 Render 배포(`https://monkey-backend-htu8.onrender.com`, `/health`·`/interpret` 프로덕션 검증)+`SERVER_BASE_URL` 교체, 해몽 품질 개선(gpt-4o-mini+프롬프트), 앱 아이콘/인앱 캐릭터/스플래시를 원숭이 점술가 일러스트로 교체, 업로드 키스토어 생성(`android/app/upload-keystore.jks`, **백업 필수**), 방침 GitHub Pages 라이브(`https://ms-won.github.io/Monkey/`), 스토어 그래픽 자산(`docs/release/store-assets/`), **패키지명 `com.xellos0304.monkey`→`com.mswon.monkey` 확정 후 서명 AAB 재빌드**(2026-07-19, 매니페스트 검증됨).
+* [ ] **사용자 수동 1건 — Play Console 비공개 테스트 업로드**: 앱 생성은 2026-07-17 완료. 남은 것은 스토어 등록정보 → 앱 콘텐츠(데이터 안전 답변표) → 비공개 테스트 트랙에 `app-release.aab` 업로드 → 테스터 12명 등록. 복붙용 치트시트 `docs/release/play-console-checklist.md`.
+* [ ] Render 플랜 `starter` 실제 적용(대시보드/Blueprint 재동기화, 결제 발생) — `render.yaml`은 이미 변경됨. 콜드스타트로 테스터 이탈 방지 목적.
 * [ ] Internal testing
 * [ ] Fix critical bugs
 * [ ] Publish Android Beta

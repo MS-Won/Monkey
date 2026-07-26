@@ -6,20 +6,25 @@
 
 ---
 
-## 지금 바로 할 일 — "다음으로 필요한 것"
+## 지금 바로 할 일 — "다음으로 필요한 것" (2026-07-26 기준)
 
-집 PC에서 이어서 작업할 때 이 체크리스트부터 보면 됩니다.
+Android 쪽 준비물은 전부 끝났습니다. **남은 건 Play Console에서 사람이 직접 하는 업로드 절차뿐**입니다.
+구체적인 입력값·순서는 `docs/release/play-console-checklist.md`(치트시트)를 따라가면 됩니다.
 
-- [ ] **`.env`의 `SERVER_BASE_URL` 갱신** — 루트 `.env` 파일을 열어
-      `SERVER_BASE_URL=https://monkey-backend-htu8.onrender.com` 로 변경 (끝에 `/` 없이).
-      `OPENAI_API_KEY`는 그대로 둠(로컬 백엔드 개발용). 릴리스 빌드에 인라인되므로 값 변경 후 반드시 재빌드.
-- [ ] **Google Play Console 본인 인증 완료 대기** — 가입/결제는 끝남, 인증 진행 중.
-- [ ] **Apple Developer Program 개인 등록 신청** — 아직 안 했다면 지금 신청(승인까지 1~4주 걸릴 수 있어 최대한 일찍 시작 권장).
-- [ ] **Render를 `starter`(유료) 플랜으로 업그레이드** — 지금은 배포 검증을 위해 `free` 플랜으로 되어 있음(`render.yaml`에 TODO 표시됨). 스토어 정식 제출 직전에는 반드시 업그레이드(무료 플랜은 15분 유휴 후 슬립 → 첫 요청 지연으로 사용자 이탈 위험).
-- [ ] **앱 아이콘 / 피처 그래픽 / 스토어 스크린샷 제작** — 아직 없음. `docs/release/store-listing.md` 문구는 준비돼 있으나 그래픽 자산 없이는 Play Console 제출 불가.
-- [ ] **업로드 키스토어 생성 + `gradlew bundleRelease`** — JDK가 있는 이 PC(집 PC)에서 진행 (아래 "Android 릴리스 빌드" 절 참고).
-- [ ] **GitHub Pages 켜서 개인정보처리방침 공개 URL 만들기** — 저장소 Settings → Pages → Source: `main` 브랜치 `/docs` 폴더. 완료되면 `docs/legal/privacy-policy.md`가 공개 URL로 노출됨. 그 URL을 Play Console/App Store Connect에 등록.
-- [ ] **`eas login` 후 첫 iOS 빌드 테스트** — Mac 없이 클라우드 빌드. Apple Developer 계정 승인 전에도 `preview` 프로필로 시뮬레이터 빌드는 가능.
+- [ ] **Play Console 비공개(클로즈드) 테스트 업로드** — 앱은 이미 생성됨(`com.mswon.monkey`).
+      스토어 등록정보 → 앱 콘텐츠 → 비공개 테스트 트랙에 `app-release.aab` 업로드 → 테스터 이메일 등록.
+- [ ] **Render `starter` 플랜 실제 적용** — `render.yaml`은 `starter`로 바꿔뒀지만, 대시보드에서 플랜을
+      변경하거나 Blueprint를 재동기화해야 실제로 반영됨(결제 발생). 테스터 14일 실사용 기간 전에 처리 권장.
+- [ ] **테스터 12명 확보** — 신규 개인 계정은 12명이 14일 연속 옵트인·실사용해야 프로덕션 전환 가능.
+- [ ] **Apple Developer Program 개인 등록 신청** — 아직 안 했다면 지금 신청(승인까지 1~4주). iOS는 Android 출시 이후 단계.
+- [ ] **`eas login` 후 첫 iOS 빌드 테스트** — Mac 없이 클라우드 빌드. Apple 계정 승인 전에도 `preview` 프로필로 시뮬레이터 빌드는 가능.
+
+### 완료됨 (재작업 불필요)
+- ✅ 루트 `.env` `SERVER_BASE_URL=https://monkey-backend-htu8.onrender.com` 반영 + 릴리스 번들에 인라인됨
+- ✅ 업로드 키스토어 생성(`android/app/upload-keystore.jks`, gitignore) + 서명된 AAB 빌드
+- ✅ GitHub Pages 방침 URL 라이브: `https://ms-won.github.io/Monkey/`
+- ✅ 그래픽 자산(아이콘 512 / 피처 1024×500 / 스크린샷 6장) `docs/release/store-assets/`
+- ✅ Play Console 앱 생성(2026-07-17) 및 패키지명 `com.mswon.monkey` 확정
 
 ---
 
@@ -29,16 +34,20 @@
 - Render Free 플랜에 배포 완료: **https://monkey-backend-htu8.onrender.com**
 - `/health` → `{"ok":true}` 확인됨
 - `/interpret` 실제 GPT 호출까지 end-to-end 검증 완료 (예: "산에서 큰 호랑이를 만났다" 입력 → 정상 해몽 텍스트 반환, 비용 약 $0.0007)
-- `render.yaml` 추가(Blueprint 배포용, Docker/`backend/Dockerfile` 기준, health check `/health`, region `singapore`). 현재 `plan: free`로 되어 있고 스토어 제출 전 `starter`로 바꿔야 한다는 TODO 주석 포함.
+- `render.yaml` 추가(Blueprint 배포용, Docker/`backend/Dockerfile` 기준, health check `/health`, region `singapore`). `plan: starter`로 갱신함(파일 기준) — **대시보드/Blueprint 재동기화로 실제 적용 필요**.
+- 해몽 모델 `gpt-4o-mini`(2026-07-12 개선), 전통 해몽 사전 RAG 그라운딩 유지.
 - `backend/Dockerfile`의 gunicorn 설정(`--workers 1`, `--preload` 미사용) + `keyword_server.py`의 module-level `Okt()` 초기화 조합을 검토한 결과, JVM/JPype fork-safety 문제 없이 안전하게 구성되어 있음 확인(수정 불필요).
 
 ### Android
-- `applicationId = com.xellos0304.monkey`(영구), 릴리스 서명 설정(`android/keystore.properties` 있으면 릴리스 키, 없으면 debug 폴백) — 이미 올바르게 구성됨.
-- `android/keystore.properties.example` 템플릿 존재, 실제 키스토어는 아직 생성 안 됨.
+- `applicationId = com.mswon.monkey` — **Play Console 앱 생성 시 확정된 영구 패키지명**(초기 `com.xellos0304.monkey`에서 변경, 2026-07-17). 스토어에 한 번 올라가면 변경 불가.
+- 릴리스 서명 설정(`android/keystore.properties` 있으면 릴리스 키, 없으면 debug 폴백) — 구성 완료.
+- 업로드 키스토어 `android/app/upload-keystore.jks` 생성 완료(alias `upload`, gitignore). **분실 시 앱 업데이트 영구 불가 — 별도 백업 필수.**
+- 서명된 릴리스 AAB 빌드 완료: `android/app/build/outputs/bundle/release/app-release.aab` (versionCode 1 / versionName 1.0, 패키지명 `com.mswon.monkey` 검증됨).
 - `targetSdkVersion 35` — 2026-08-31부터 신규/업데이트 앱은 API 36 의무화(연장 시 11/1까지). 제출 시점이 이 날짜에 가까워지면 업그레이드 필요.
 
 ### iOS (이번 세션에서 신규 준비)
-- Bundle Identifier를 RN CLI 기본값(`org.reactjs.native.example.monkey`)에서 Android와 동일한 **`com.xellos0304.monkey`**로 변경 (`ios/monkey.xcodeproj/project.pbxproj`).
+- Bundle Identifier를 RN CLI 기본값(`org.reactjs.native.example.monkey`)에서 **`com.xellos0304.monkey`**로 변경 (`ios/monkey.xcodeproj/project.pbxproj`).
+  ⚠️ Android는 이후 `com.mswon.monkey`로 확정돼 **둘이 서로 다름**. 플랫폼별로 달라도 기능상 문제는 없으나, 통일하려면 Apple 앱 레코드 생성 **전에** pbxproj를 `com.mswon.monkey`로 바꿀 것(등록 후에는 변경 불가).
 - `ios/monkey/Info.plist`: 사용하지 않는 빈 `NSLocationWhenInUseUsageDescription` 제거, `@react-native-voice/voice`에 필요한 `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` 추가.
 - `ios/monkey/PrivacyInfo.xcprivacy`: AsyncStorage 등 Required Reason API 사유(`CA92.1` 등)가 이미 올바르게 선언되어 있음을 확인(수정 불필요).
 - `eas.json` 신규 생성 — development/preview/production 빌드 프로필. iOS 빌드 이미지는 명시적으로 고정하지 않음(현재 EAS 기본 이미지가 이미 Xcode 26.4라 별도 고정 불필요, 필요시 `docs.expo.dev/build-reference/infrastructure/`에서 최신 이미지명 확인).
@@ -46,7 +55,8 @@
 
 ### 문서/정책
 - `docs/legal/privacy-policy.md`: OpenAI가 표준 API 정책상 최대 30일간 데이터를 보관할 수 있다는 내용 추가(한/영 모두). Play Data Safety / App Privacy 신고 시 "수집됨/제3자 공유" 근거로 사용.
-- GitHub Pages는 아직 활성화 안 함(위 체크리스트 참고).
+- GitHub Pages 활성화 완료 → 공개 방침 URL **https://ms-won.github.io/Monkey/** (Play Console·App Store Connect에 등록할 주소).
+- 스토어 그래픽 자산 제작 완료: `docs/release/store-assets/`(아이콘 512, 피처 1024×500, 스크린샷 6장) + 생성 스크립트.
 
 ---
 
@@ -74,8 +84,10 @@
 
 ## Google Play Console 제출
 
-1. Play Console 계정 인증 완료 확인(위 체크리스트).
-2. 앱 만들기 → 앱 이름 `Monkey`.
+> 실제 입력값(앱 이름·설명 문구·데이터 안전 답변표)은 `docs/release/play-console-checklist.md`에 복붙 가능한 형태로 정리돼 있음.
+
+1. ✅ Play Console 계정 인증 완료.
+2. ✅ 앱 만들기 완료(2026-07-17) — `Monkey (夢Key; 꿈의 키워드) - 해몽, 운명`, 패키지 `com.mswon.monkey`.
 3. 스토어 등록정보: `docs/release/store-listing.md`의 제목/짧은설명/자세한설명 붙여넣기. 아이콘 512×512, 피처그래픽 1024×500, 스크린샷 업로드(그래픽 자산 준비 필요).
 4. 앱 콘텐츠: 개인정보처리방침 URL(GitHub Pages), **데이터 안전(Data Safety)** 양식 — 꿈 텍스트(사용자 생성 콘텐츠)를 OpenAI로 전송 → "수집됨" + "제3자와 공유됨"으로 신고, 마이크/음성 데이터도 별도 신고. 콘텐츠 등급 설문, 타깃 연령, 광고 없음 체크.
 5. 테스트 → **비공개 테스트(Closed testing)** 트랙 생성 → `app-release.aab` 업로드 → 테스터 이메일 목록 등록.
@@ -87,7 +99,7 @@
 1. Apple Developer Program 개인 등록 완료 대기.
 2. `npx eas-cli login` → Expo 계정 로그인(없으면 생성).
 3. `npx eas-cli build --platform ios --profile preview` — Apple 계정 승인 전에도 시뮬레이터/애드혹 빌드로 네이티브 모듈(voice, sqlite-storage) 호환성 먼저 확인 가능.
-4. Apple 계정 승인 후: App Store Connect에서 Bundle ID(`com.xellos0304.monkey`) 등록 및 앱 레코드 생성. 서명 인증서/프로비저닝 프로파일은 `eas credentials`로 자동 관리 가능.
+4. Apple 계정 승인 후: App Store Connect에서 Bundle ID(현재 pbxproj 값 `com.xellos0304.monkey` — 위 iOS 절의 통일 여부 결정 후) 등록 및 앱 레코드 생성. 서명 인증서/프로비저닝 프로파일은 `eas credentials`로 자동 관리 가능.
 5. `npx eas-cli build --platform ios --profile production` → `npx eas-cli submit --platform ios`.
 6. App Store Connect: App Privacy(개인정보) 라벨 작성(Play Data Safety와 동일 논리로 "수집됨/제3자 공유"), 스크린샷, 설명, 연령 등급.
 7. **App Review 콘텐츠 리스크**: Apple의 2026-06 가이드라인 개정으로 "운세/점술" 카테고리 신규 진입 장벽이 강화됨. 제출 시 "Notes for Reviewer"란에 "점술/상담 앱이 아니라 음성 입력·로컬 저장 기반 개인 일기/자기성찰 도구"라는 차별점을 명확히 서술. 반려 후 재제출 1회를 일정에 버퍼로 반영 권장.

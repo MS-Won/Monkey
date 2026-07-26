@@ -23,7 +23,14 @@
       "Bash(python -c \"from PIL import Image; im=Image.open\\('img/01_Dawn.png'\\); print\\('size', im.size, im.mode\\)\")",
       "Read(//c/Windows/Fonts//**)",
       "Bash(python -c ' *)",
-      "Bash(SCRATCH=\"C:/Users/User/AppData/Local/Temp/claude/D--00-My-Project-01-Monkey/2133affd-b628-44da-91a3-348dc1a1e3e2/scratchpad\" OUT=scratch python scripts/apply-card-labels.py 1 13 19)"
+      "Bash(SCRATCH=\"C:/Users/User/AppData/Local/Temp/claude/D--00-My-Project-01-Monkey/2133affd-b628-44da-91a3-348dc1a1e3e2/scratchpad\" OUT=scratch python scripts/apply-card-labels.py 1 13 19)",
+      "Bash(curl -s -m 60 -w \"\\\\n[HTTP %{http_code}] time=%{time_total}s\\\\n\" https://monkey-backend-htu8.onrender.com/health)",
+      "Bash(curl -s -m 180 -w '\\\\n[HTTP %{http_code}] time=%{time_total}s\\\\n' -X POST https://monkey-backend-htu8.onrender.com/interpret -H 'Content-Type: application/json' -d '{\"text\":\"어젯밤 큰 돼지가 집에 들어왔다\"}')",
+      "Bash(printf '{\"text\":\"%s\"}' \"어젯밤 큰 돼지가 집에 들어왔다\")",
+      "Bash(curl -s -m 180 -w '\\\\n[HTTP %{http_code}] time=%{time_total}s\\\\n' -X POST https://monkey-backend-htu8.onrender.com/interpret -H 'Content-Type: application/json; charset=utf-8' --data-binary @interpret_body.json)",
+      "PowerShell(Tee-Object *)",
+      "WebFetch(domain:ms-won.github.io)",
+      "Bash(unzip -p android/app/build/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml)"
     ]
   }
 }

@@ -2,10 +2,10 @@ services:
   - type: web
     name: monkey-backend
     runtime: docker
-    # TODO: switch to `starter` (or higher) before real store submission.
-    # Free tier sleeps after 15 min idle and cold-starts slowly (JVM/Okt
-    # init on top of the base cold start) — fine for now, not for prod.
-    plan: free
+    # starter: no idle-sleep, avoids cold-start delay (JVM/Okt init) that would
+    # hurt closed-test tester engagement over the required 14-day active-use window.
+    # NOTE: applying this (Render dashboard / Blueprint sync) starts billing.
+    plan: starter
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     region: singapore
