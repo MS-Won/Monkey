@@ -41,28 +41,46 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - [아키타입 카드 30종 정의](../docs/design/archetype-cards.md) — 카드 데이터(코드) 단일 소스
 - 카드 일러스트 생성: `scripts/gen-card-art.py` (무료 Pollinations FLUX 기본, provider 교체 가능) → `frontend/assets/images/cards/`, `frontend/src/data/cardArt.ts` 매핑
 
-## Progress (2026-07-26)
+## Progress (2026-07-27)
 
-> 상세 로그는 auto-memory `project_monkey_status.md`(추가 15~23) 참고. 여기선 현황만.
+> 상세 로그는 auto-memory `project_monkey_status.md`(추가 15~24) 참고. 여기선 현황만.
+
+### 이번 세션(07-27) 완료 — 해몽 카테고리 개편
+
+계획 `docs/superpowers/plans/2026-07-26-reading-categories.md`의 8태스크를 전부 구현하고
+`feat/reading-categories` → main 병합(머지커밋 `b3a7e55`).
+
+- **GPT 호출 7회 → 1회.** 백엔드에 단일 `/reading`(JSON 모드). 문장별 해몽 폐지, 종합 해몽
+  \+ 오늘의 한마디 + 근거 있는 카테고리 2~4개(행운/주의운/인간관계/재물운/직장·학업운/건강운).
+- **비용 실측 $0.0017 → $0.00030 (82% 절감).** 목표 $0.0006의 절반.
+- 카드를 먼저 보여주고, 탭해야 해몽·카테고리가 열린다. 프로필은 서버로 보내지 않고 기기에서
+  카테고리 순서만 조정한다. 성별 필드 제거(온보딩 이름 → 나이대 → 직업 3단계).
+- **이 프로젝트 최초의 자동 테스트**: `backend/test_reading_schema.py` 10건. 순수 함수라
+  네트워크 없이 돈다.
+- 삭제: `frontend/src/logic/AnalyzeSentence.ts`, `frontend/src/logic/embedding.ts`.
+  SQLite `cache` 테이블은 남겨둠(마이그레이션 위험 회피).
+- 에뮬레이터 실기 검증 전 항목 통과.
 
 ### ▶ 다음 세션에서 바로 할 일
 
-**해몽 카테고리 개편 구현.** 설계·계획 문서가 이미 커밋돼 있고 코드는 아직 손대지 않았다.
+1. **구 엔드포인트 삭제** — 백엔드 `/split`·`/interpret`·`/summary`·`/embed` +
+   `frontend/src/logic/gpt.ts`(이미 참조 0건인 죽은 코드). 한 커밋으로 묶는다.
+2. `docs/release/store-assets/screenshot-6-interpretation.png` 재캡처 — 해몽 화면이 바뀌었다.
+3. **versionCode 3으로 AAB 재빌드 → Play 비공개 테스트 업로드.**
+4. `dream_lexicon` 오매칭 — "금가락지를 쥐여 주셨다"에서 `쥐`를 상징으로 잡는다(기존 이슈).
 
-- 스펙: `docs/superpowers/specs/2026-07-26-reading-categories-design.md`
-- 계획: `docs/superpowers/plans/2026-07-26-reading-categories.md` — **8태스크 45스텝, 각 스텝에 실제 코드 포함**
-- 실행 방식(서브에이전트 vs 인라인)만 정하면 Task 1부터 바로 시작 가능
+### 함정 메모
 
-개편 요지: GPT 호출 7회 → 1회(단일 `/reading`). 문장별 해몽을 없애고 의미 카테고리
-(행운/주의운/인간관계/재물운/직장·학업운/건강운 중 근거 있는 2~4개 + 종합 해몽 + 오늘의
-한마디)로 바꾼다. 카드를 먼저 보여주고 탭하면 해몽·카테고리가 열린다. 프로필은 서버로
-보내지 않고 기기에서 순서만 조정한다. 성별 필드는 제거한다.
+- **OPENAI_API_KEY는 `backend/.env`가 아니라 프로젝트 루트 `.env`에 있다.** `load_dotenv()`가
+  상위로 탐색해 찾는다. 루트 `.env`에 `SERVER_BASE_URL`도 함께 있다(gitignore 대상).
+- 에뮬 검증 시 `.env`의 `SERVER_BASE_URL`을 `http://10.0.2.2:5001`로 바꿔 로컬 서버를 보게 하고
+  **끝나면 반드시 Render 주소로 복구**한다. 안 하면 릴리스 AAB가 localhost를 본다.
+- 릴리스 서명 빌드가 깔려 있으면 디버그 설치가 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`로 막힌다.
+  `adb uninstall com.mswon.monkey` 선행(앱 데이터 삭제됨).
+- `adb shell input text`는 공백을 `%s`로 이스케이프해야 하고 한글은 불가.
+  `keyevent 111`(ESC)은 뒤로가기로 동작해 앱이 종료된다.
 
-실측 근거: `/interpret` 한 문장 호출 입력이 865토큰인데 문장 자체는 20토큰뿐이고 나머지는
-`PERSONA_SYSTEM`이 문장마다 재전송되는 것. 5문장 꿈 = 7회 호출 / $0.0017 / 7왕복
-→ 목표 1회 / ~$0.0006 / 1왕복.
-
-### 이번 세션(07-26) 완료
+### 이전 세션(07-26) 완료
 
 **Play Console 앱 설정 2/11 → 11/11 완료** (브라우저 자동화로 직접 입력)
 - 방침URL, 로그인 세부정보(제한없음), 광고(없음), **콘텐츠 등급 제출완료**(ESRB E ·
