@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   PermissionsAndroid,
   Platform,
@@ -15,16 +14,11 @@ import Voice from '@react-native-voice/voice';
 import { RootStackParamList } from '../../navigator';
 import { SERVER_BASE_URL } from '@env';
 
-// ✅ 프로필 로드
-import { loadUserProfile } from '../storage/userProfile';
-import type { Gender, AgeGroup, JobGroup } from '../storage/userProfile';
-
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { Spacing, Radius } from '../theme/spacing';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
-import CardCreationLoader from '../components/DreamCard/CardCreationLoader';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import BackButton from '../components/BackButton';
 
@@ -42,16 +36,6 @@ const InputScreen = () => {
 
   const [text, setText] = useState<string>(initialDreamText);
   const [isRecording, setIsRecording] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // ✅ 프로필 컨텍스트
-  const [personName, setPersonName] = useState<string | undefined>(undefined);
-  const [gender, setGender] = useState<Gender | undefined>(undefined);
-  const [ageGroup, setAgeGroup] = useState<AgeGroup | undefined>(undefined);
-  const [jobGroup, setJobGroup] = useState<JobGroup | undefined>(undefined);
-
-  // ✅ 핵심: 프로필 로딩 완료 플래그
-  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // ✅ 타이머/녹음상태 ref (비동기 이벤트에서 최신값 보장)
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,37 +61,11 @@ const InputScreen = () => {
   };
 
   /* ---------------------------
-     공통: 프로필 로드
-  --------------------------- */
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile = await loadUserProfile();
-
-        const name = profile.name?.trim();
-        setPersonName(name ? name : undefined);
-
-        setGender(profile.gender ?? undefined);
-        setAgeGroup(profile.ageGroup ?? undefined);
-        setJobGroup(profile.jobGroup ?? undefined);
-      } catch (e) {
-        console.warn('⚠️ 프로필 로드 실패(무시 가능):', e);
-        setPersonName(undefined);
-        setGender(undefined);
-        setAgeGroup(undefined);
-        setJobGroup(undefined);
-      } finally {
-        setProfileLoaded(true);
-      }
-    })();
-  }, []);
-
-  /* ---------------------------
-     text 모드: 자동 /split → Result
+     text 모드: 바로 Result로 넘김
+     (문장 분리가 사라져 이 화면에서 할 비동기 작업이 없다)
   --------------------------- */
   useEffect(() => {
     if (mode !== 'text') return;
-    if (!profileLoaded) return;
 
     const dreamText = initialDreamText.trim();
 
@@ -117,57 +75,9 @@ const InputScreen = () => {
       return;
     }
 
-    const run = async () => {
-      try {
-        setIsLoading(true);
-
-        // ✅ 디버그용 (서버 주소가 제대로 들어오는지 확인)
-        if (__DEV__) console.log('✅ SERVER_BASE_URL =', SERVER_BASE_URL);
-
-        const response = await fetch(`${SERVER_BASE_URL}/split`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: dreamText }),
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error('❌ /split 응답 에러:', errText);
-          Alert.alert('오류', '서버 응답이 올바르지 않습니다.');
-          navigation.replace('Main');
-          return;
-        }
-
-        const data = await response.json();
-
-        if (!Array.isArray(data.sentences)) {
-          Alert.alert('오류', '문장 분리 결과가 없습니다.');
-          navigation.replace('Main');
-          return;
-        }
-
-        navigation.replace('Result', {
-          sentenceList: data.sentences,
-          dreamText,
-          usedGPTInSplit: !!data.usedGPT,
-          personName,
-
-          gender,
-          ageGroup,
-          jobGroup,
-        });
-      } catch (error) {
-        console.error('❌ 서버 요청 에러:', error);
-        Alert.alert('오류', '서버 연결에 실패했습니다.');
-        navigation.replace('Main');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    run();
+    navigation.replace('Result', { dreamText });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, profileLoaded]);
+  }, [mode]);
 
   /* ---------------------------
      voice 모드: STT 이벤트 등록 (✅ 1회만)
@@ -268,65 +178,26 @@ const InputScreen = () => {
     }
   };
 
-  const handleSubmitVoice = async () => {
+  const handleSubmitVoice = () => {
     const trimmed = text.trim();
     if (!trimmed) {
       Alert.alert('알림', '꿈 내용을 입력해주세요.');
       return;
     }
 
-    try {
-      setIsLoading(true);
+    if (__DEV__) console.log('✅ SERVER_BASE_URL =', SERVER_BASE_URL);
 
-      if (__DEV__) console.log('✅ SERVER_BASE_URL =', SERVER_BASE_URL);
-
-      const response = await fetch(`${SERVER_BASE_URL}/split`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: trimmed }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error('❌ /split 응답 에러:', errText);
-        Alert.alert('오류', '서버 응답이 올바르지 않습니다.');
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!Array.isArray(data.sentences)) {
-        Alert.alert('오류', '문장 분리 결과가 없습니다.');
-        return;
-      }
-
-      navigation.replace('Result', {
-        sentenceList: data.sentences,
-        dreamText: trimmed,
-        usedGPTInSplit: !!data.usedGPT,
-        personName,
-
-        gender,
-        ageGroup,
-        jobGroup,
-      });
-    } catch (error) {
-      console.error('❌ 서버 요청 에러:', error);
-      Alert.alert('오류', '서버 연결에 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
+    navigation.replace('Result', { dreamText: trimmed });
   };
 
   /* ---------------------------
      렌더링
   --------------------------- */
+  // text 모드는 위 useEffect가 곧바로 Result로 replace 한다.
+  // 그 한 프레임 동안 음성 입력 UI가 스쳐 보이지 않도록 배경만 그린다.
   if (mode === 'text') {
-    return <CardCreationLoader label="문장을 정리하고 있어요…" sublabel="잠시만 기다려주세요" />;
+    return <View style={styles.blankContainer} />;
   }
-
-  const primaryDisabled = isLoading;
-  const recordDisabled = isLoading;
 
   return (
     <View style={styles.voiceContainer}>
@@ -344,7 +215,6 @@ const InputScreen = () => {
         multiline
         minHeight={140}
         placeholder="예) 낯선 골목을 걷다가 누군가에게 쫓겼다…"
-        editable={!isLoading}
       />
 
       {isRecording && (
@@ -354,26 +224,17 @@ const InputScreen = () => {
         </View>
       )}
 
-      {isLoading && (
-        <View style={styles.inlineRow}>
-          <ActivityIndicator size="small" color={Colors.accentPrimary} />
-          <Text style={styles.status}>생각하는 중…</Text>
-        </View>
-      )}
-
       <View style={styles.buttonRow}>
         <Button
           label={isRecording ? '음성 중지' : '음성 입력'}
           variant="secondary"
           onPress={isRecording ? stopRecording : startRecording}
-          disabled={recordDisabled}
           style={styles.flexBtn}
         />
         <Button
           label="해몽 시작"
           variant="primary"
           onPress={handleSubmitVoice}
-          disabled={primaryDisabled}
           style={styles.flexBtn}
         />
       </View>
@@ -408,6 +269,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundPrimary,
     padding: Spacing.xl,
     paddingTop: 100,
+  },
+
+  // text 모드에서 Result로 넘어가기 직전 한 프레임용
+  blankContainer: {
+    flex: 1,
+    backgroundColor: Colors.backgroundPrimary,
   },
 
   title: {
