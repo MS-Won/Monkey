@@ -44,12 +44,6 @@ CORNER = 46
 
 SHOTS = [
     {
-        "out": "screenshot-1-splash.png",
-        "raw": "1-splash.png",
-        "headline": ["밤마다 찾아오는 꿈,", "오래된 시선으로"],
-        "sub": "전통 해몽을 바탕으로 풀어드립니다",
-    },
-    {
         "out": "screenshot-2-home.png",
         "raw": "2-home.png",
         "headline": ["꿈을 적으면,", "바로 풀어드려요"],
@@ -78,6 +72,18 @@ SHOTS = [
         "raw": "6-interpretation.png",
         "headline": ["종합 해몽부터", "오늘의 한마디까지"],
         "sub": "관계 · 재물 · 직장까지 나눠서 읽어드려요",
+    },
+]
+
+# 스플래시는 스토어에서 뺐다. 로고 하나뿐이라 프레임 안이 비어 보이고,
+# Play는 폰 스크린샷 2장이면 충분하다. 원본 raw/1-splash.png는 남겨 뒀으니
+# 되살리려면 아래 항목을 SHOTS로 옮기고 스크립트를 다시 돌리면 된다.
+RETIRED = [
+    {
+        "out": "screenshot-1-splash.png",
+        "raw": "1-splash.png",
+        "headline": ["밤마다 찾아오는 꿈,", "오래된 시선으로"],
+        "sub": "전통 해몽을 바탕으로 풀어드립니다",
     },
 ]
 
