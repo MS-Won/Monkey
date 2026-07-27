@@ -4,11 +4,10 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Pressable,
-  LayoutAnimation,
   Platform,
   UIManager,
   Alert,
+  TextStyle,
 } from 'react-native';
 import {RouteProp, useRoute} from '@react-navigation/native';
 import {RootStackParamList} from '../../navigator';
@@ -17,16 +16,16 @@ import {
   CATEGORY_TITLES,
   sortCategoriesByProfile,
   renderReadingText,
+  toParagraphs,
 } from '../logic/readingView';
 import {loadUserProfile} from '../storage/userProfile';
 import {saveDreamDiary} from '../database/initDB';
 
 import {Colors} from '../theme/colors';
 import {Typography} from '../theme/typography';
-import {Spacing, Radius} from '../theme/spacing';
+import {Spacing} from '../theme/spacing';
 
 import Card from '../components/Card';
-import Chip from '../components/Chip';
 import Divider from '../components/Divider';
 import DreamCard from '../components/DreamCard/DreamCard';
 import CardCreationLoader from '../components/DreamCard/CardCreationLoader';
@@ -40,6 +39,7 @@ import {
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;
 
+// 카드를 뒤집을 때 프레임이 내용 높이만큼 늘어나는 것을 부드럽게 처리한다.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -79,13 +79,32 @@ function calculateLuckyScore(text: string) {
   return score;
 }
 
+/**
+ * 긴 본문을 단락으로 끊어 렌더한다.
+ *
+ * 모델은 개행 없이 한 덩어리로 돌려주는데, 분량을 2배로 늘린 뒤로는
+ * 문장이 벽처럼 이어져 읽기 힘들었다. 화면에서만 나누고 저장 평문은 그대로 둔다.
+ */
+function Paragraphs({text, style}: {text: string; style: TextStyle}) {
+  const paras = toParagraphs(text);
+
+  return (
+    <>
+      {paras.map((p, i) => (
+        <Text key={i} style={[style, i > 0 && styles.paragraphGap]}>
+          {p}
+        </Text>
+      ))}
+    </>
+  );
+}
+
 const ResultScreen = () => {
   const route = useRoute<ResultScreenRouteProp>();
 
   const {dreamText} = route.params as {dreamText: string};
 
   const [loading, setLoading] = useState(true);
-  const [devOpen, setDevOpen] = useState(false);
   const [reading, setReading] = useState<Reading | null>(null);
   const [ordered, setOrdered] = useState<ReadingCategory[]>([]);
   const [card, setCard] = useState<ArchetypeCard | null>(null);
@@ -125,16 +144,6 @@ const ResultScreen = () => {
     run();
   }, [dreamText]);
 
-  const getCostInfo = (usd: number) => {
-    const won = usd * 1366;
-    return `💵 ${usd.toFixed(5)} / ₩ ${won.toFixed(0)}`;
-  };
-
-  const toggleDev = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setDevOpen(v => !v);
-  };
-
   if (loading) {
     return (
       <CardCreationLoader
@@ -166,10 +175,22 @@ const ResultScreen = () => {
             flipped={cardFlipped}
             onToggleFlip={() => setCardFlipped(v => !v)}
             entrance
+            growBack
             renderBack={() => (
               <>
+                {/* 종합 해몽 → 카테고리 → 오늘의 한마디를 한 프레임에 담는다.
+                    저장되는 평문(renderReadingText)과 순서가 같아야
+                    화면에서 본 것과 꿈기록에 남는 것이 일치한다. */}
                 <Text style={styles.cardBackTitle}>종합 해몽</Text>
-                <Text style={styles.summaryText}>{reading?.summary}</Text>
+                <Paragraphs text={reading?.summary ?? ''} style={styles.summaryText} />
+
+                {ordered.map(c => (
+                  <View key={c.key}>
+                    <Divider style={styles.cardBackDivider} />
+                    <Text style={styles.cardBackTitle}>{CATEGORY_TITLES[c.key]}</Text>
+                    <Paragraphs text={c.body} style={styles.bodyText} />
+                  </View>
+                ))}
 
                 {!!reading?.oneLine && (
                   <>
@@ -183,34 +204,6 @@ const ResultScreen = () => {
           />
         )}
       </View>
-
-      {cardFlipped &&
-        ordered.map(c => (
-          <Card key={c.key} title={CATEGORY_TITLES[c.key]} style={styles.card}>
-            <Text style={styles.bodyText}>{c.body}</Text>
-          </Card>
-        ))}
-
-      {__DEV__ && (
-        <View style={styles.devWrapper}>
-          <Pressable onPress={toggleDev} style={styles.devHeader}>
-            <Text style={styles.devTitle}>개발자용(테스트 정보)</Text>
-            <Text style={styles.devToggle}>{devOpen ? '접기 ▲' : '펼치기 ▼'}</Text>
-          </Pressable>
-
-          {devOpen && reading && (
-            <Card title="해몽 호출(DEV)" style={styles.card}>
-              <View style={styles.metaRow}>
-                <Chip text={`in ${reading.inputToken} / out ${reading.outputToken}`} />
-                <Chip text={getCostInfo(reading.totalCostUsd)} />
-              </View>
-              <Text style={styles.bodyText}>
-                상징: {reading.symbols.join(', ') || '(매칭 없음)'}
-              </Text>
-            </Card>
-          )}
-        </View>
-      )}
 
       <Text style={[Typography.caption, styles.footer]}>
         * Monkey는 “운세 앱”이 아니라 꿈 기록과 해석을 위한 도구로 설계됩니다.
@@ -254,37 +247,12 @@ const styles = StyleSheet.create({
   bodyText: {
     ...Typography.body,
   },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: 10,
-  },
   summaryText: {
     ...Typography.body,
   },
-  devWrapper: {
-    marginTop: 14,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderSubtle,
-    padding: 12,
-    backgroundColor: 'transparent',
-  },
-  devHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  devTitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  devToggle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
+  // 단락 사이 숨 쉴 틈. 8~12문장이 벽처럼 이어지지 않게 한다.
+  paragraphGap: {
+    marginTop: Spacing.md,
   },
   footer: {
     marginTop: 16,

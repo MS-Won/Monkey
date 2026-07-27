@@ -32,6 +32,14 @@ type DreamCardProps = {
   size?: 'compact' | 'full';
   entrance?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * 뒤집었을 때 뒷면이 내용만큼 세로로 늘어나게 한다.
+   *
+   * 기본값(false)은 카드가 2:3 비율로 고정되고 뒷면이 내부 스크롤을 갖는다.
+   * 해몽 전문을 한 프레임에 담으면 그 작은 상자 안에서 중첩 스크롤이 생겨
+   * 읽기 어려우므로, 해몽 화면에서는 이 값을 켜서 페이지 단위로 읽히게 한다.
+   */
+  growBack?: boolean;
 };
 
 // 카드 종횡비를 일러스트(832×1248 = 정확히 2:3)와 동일하게 맞춰 cover 크롭이 없게 한다.
@@ -65,6 +73,7 @@ export default function DreamCard({
   size = 'full',
   entrance = false,
   style,
+  growBack = false,
 }: DreamCardProps) {
   const rotate = useSharedValue(0);
   const enter = useSharedValue(entrance ? 0 : 1);
@@ -106,10 +115,16 @@ export default function DreamCard({
   const compact = size === 'compact';
   const art = getCardArt(card.id);
 
+  // 뒤집힌 뒤에만 높이 제약을 푼다. 앞면일 때는 일러스트 비율(2:3)을 지켜야 한다.
+  const expanded = growBack && flipped;
+
   return (
     <Pressable
       onPress={onToggleFlip}
-      style={[compact ? styles.cardCompact : styles.cardFull, style]}>
+      style={[
+        compact ? styles.cardCompact : expanded ? styles.cardFullGrow : styles.cardFull,
+        style,
+      ]}>
 
       {/* 앞면 — 카드 일러스트 (id·영문명/의미·한글명/의미가 이미지에 이미 구워져 있어 앱 오버레이 없음) */}
       <Animated.View style={[styles.face, styles.frontFace, frontStyle]}>
@@ -122,10 +137,16 @@ export default function DreamCard({
       </Animated.View>
 
       {/* 뒷면 — 해몽(가독성 위해 어두운 표면 + 골드 보더) */}
-      <Animated.View style={[styles.face, styles.back, backStyle]}>
-        <ScrollView style={styles.backScroll} contentContainerStyle={styles.backContent}>
-          {renderBack()}
-        </ScrollView>
+      <Animated.View
+        style={[styles.face, styles.back, expanded && styles.backGrow, backStyle]}>
+        {expanded ? (
+          // 내용이 높이를 결정한다. 스크롤은 화면(페이지)이 담당한다.
+          <View style={styles.backContent}>{renderBack()}</View>
+        ) : (
+          <ScrollView style={styles.backScroll} contentContainerStyle={styles.backContent}>
+            {renderBack()}
+          </ScrollView>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -140,6 +161,10 @@ const styles = StyleSheet.create({
   cardFull: {
     width: '100%',
     aspectRatio: CARD_RATIO,
+  },
+  // 뒤집힌 뒤: 비율 고정을 풀고 뒷면 내용이 높이를 정하게 한다.
+  cardFullGrow: {
+    width: '100%',
   },
   face: {
     position: 'absolute',
@@ -243,6 +268,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundElevated,
     borderWidth: 1,
     borderColor: Colors.accentGold,
+  },
+  // position을 relative로 되돌려 이 면이 카드 높이를 만들게 한다.
+  // (face가 absolute라 그대로 두면 높이가 0이 된다)
+  backGrow: {
+    position: 'relative',
   },
   backScroll: { flex: 1 },
   backContent: { padding: Spacing.lg },

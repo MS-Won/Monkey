@@ -75,6 +75,56 @@ export function sortCategoriesByProfile(
 }
 
 /**
+ * 문장 단위로 자른다.
+ *
+ * 정규식 lookbehind는 Hermes 버전에 따라 동작이 갈리므로 직접 훑는다.
+ * 마침표가 없는 꼬리 문장도 버리지 않는다.
+ */
+function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let buf = '';
+
+  for (const ch of text) {
+    buf += ch;
+    if (ch === '.' || ch === '!' || ch === '?') {
+      const s = buf.trim();
+      if (s) out.push(s);
+      buf = '';
+    }
+  }
+
+  const tail = buf.trim();
+  if (tail) out.push(tail);
+
+  return out;
+}
+
+/**
+ * 긴 해몽을 읽기 좋은 단락으로 나눈다.
+ *
+ * 모델이 개행 없이 한 덩어리로 돌려주기 때문에, 분량을 2배로 늘린 뒤로는
+ * 단락 없이 8~12문장이 벽처럼 이어져 읽기가 힘들어졌다. 화면에서만 나누며
+ * 저장되는 평문은 건드리지 않는다.
+ *
+ * 문장 수가 적으면 굳이 쪼개지 않는다. 두 문장짜리 단락 두 개보다
+ * 네 문장 한 덩어리가 낫다.
+ */
+export function toParagraphs(text: string, perParagraph = 3): string[] {
+  const body = (text ?? '').trim();
+  if (!body) return [];
+
+  const sentences = splitSentences(body);
+  if (sentences.length <= perParagraph + 1) return [body];
+
+  const out: string[] = [];
+  for (let i = 0; i < sentences.length; i += perParagraph) {
+    out.push(sentences.slice(i, i + perParagraph).join(' '));
+  }
+
+  return out;
+}
+
+/**
  * 꿈기록에 저장할 평문을 만든다.
  *
  * 기존 dream_diary.interpretation 컬럼을 그대로 쓰므로 스키마 변경과
