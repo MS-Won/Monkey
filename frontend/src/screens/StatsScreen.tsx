@@ -37,6 +37,7 @@ const josa = (word: string, withF: string, withoutF: string) =>
 type KeywordStat = {
   keyword: string; // DB 원본 값(영문 카드명 등) — React key/조회용
   nameKo: string; // 화면 표기용 한글
+  meaning: string; // 카드 의미(예: '풍요 · 번영 · 재물운') — 이름만으로는 뜻이 안 통해서 함께 보여준다
   count: number;
   percent: number;
 };
@@ -137,15 +138,19 @@ const StatsScreen = () => {
             totalKeywordCount += item.count;
           }
 
-          const calculated = temp.map(item => ({
-            keyword: item.keyword,
-            nameKo: resolveArchetypeCard(item.keyword).nameKo,
-            count: item.count,
-            percent:
-              totalKeywordCount === 0
-                ? 0
-                : Math.round((item.count / totalKeywordCount) * 100),
-          }));
+          const calculated = temp.map(item => {
+            const card = resolveArchetypeCard(item.keyword);
+            return {
+              keyword: item.keyword,
+              nameKo: card.nameKo,
+              meaning: card.meaning,
+              count: item.count,
+              percent:
+                totalKeywordCount === 0
+                  ? 0
+                  : Math.round((item.count / totalKeywordCount) * 100),
+            };
+          });
 
           setKeywordStats(calculated);
 
@@ -337,7 +342,10 @@ const StatsScreen = () => {
         {keywordStats.length > 0 ? (
           keywordStats.map(item => (
             <View key={item.keyword} style={styles.keywordRow}>
-              <Text style={styles.keywordName}>{item.nameKo}</Text>
+              <Text style={styles.keywordName} numberOfLines={2}>
+                {item.nameKo}
+                <Text style={styles.keywordMeaning}> ({item.meaning})</Text>
+              </Text>
               <Text style={styles.keywordPercent}>{item.percent}%</Text>
             </View>
           ))
@@ -561,14 +569,22 @@ const styles = StyleSheet.create({
   },
   keywordRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.sm,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderSubtle,
   },
   keywordName: {
+    flex: 1,
     color: Colors.textPrimary,
     fontSize: 15,
+    lineHeight: 21,
+  },
+  keywordMeaning: {
+    color: Colors.textSecondary,
+    fontSize: 13,
   },
   keywordPercent: {
     color: Colors.textPrimary,
