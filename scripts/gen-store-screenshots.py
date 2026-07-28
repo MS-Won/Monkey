@@ -46,8 +46,8 @@ SHOTS = [
     {
         "out": "screenshot-2-home.png",
         "raw": "2-home.png",
-        "headline": ["꿈을 적으면,", "바로 풀어드려요"],
-        "sub": "텍스트로 쓰거나 음성으로 들려주세요",
+        "headline": ["긴 꿈도 통째로,", "장면마다 풀어드려요"],
+        "sub": "한 줄이든 열 줄이든 · 텍스트로도 음성으로도",
     },
     {
         "out": "screenshot-3-diary-cards.png",
@@ -59,7 +59,7 @@ SHOTS = [
         "out": "screenshot-4-stats.png",
         "raw": "4-stats.png",
         "headline": ["내 꿈의 흐름을", "한눈에"],
-        "sub": "자주 등장한 상징과 기록 추이",
+        "sub": "자주 등장한 상징과 그 뜻, 그리고 기록 추이",
     },
     {
         "out": "screenshot-5-card.png",
