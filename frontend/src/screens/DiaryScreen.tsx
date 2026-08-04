@@ -11,6 +11,7 @@ import Mascot from '../components/Mascot';
 import FanCarousel from '../components/FanCarousel';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import Ornament from '../components/holo/Ornament';
+import {resolveArchetypeCard} from '../data/archetypeCards';
 import {formatDate} from '../utils/date';
 
 export default function DiaryScreen() {
@@ -33,6 +34,13 @@ export default function DiaryScreen() {
       load();
     }, [load]),
   );
+
+  const focusedCard = focusedItem
+    ? resolveArchetypeCard(focusedItem.keyword || '기타')
+    : null;
+  const focusedCardLabel = focusedCard
+    ? `${focusedCard.nameKo} · ${focusedCard.meaning}`
+    : ' ';
 
   if (!loading && items.length === 0) {
     return (
@@ -60,6 +68,11 @@ export default function DiaryScreen() {
         <Ornament width={140} style={styles.headerOrnament} />
         <Text style={[Typography.caption, styles.dateLabel]}>
           {focusedItem ? formatDate(focusedItem.created_at) : ' '}
+        </Text>
+        {/* 캐러셀 카드는 부채꼴로 겹쳐 있어 카드마다 라벨을 붙일 수 없다.
+            대신 가운데(포커스) 카드의 한글 이름/뜻을 여기 한 줄로 보여준다. */}
+        <Text style={[Typography.caption, styles.cardLabel]}>
+          {focusedItem ? focusedCardLabel : ' '}
         </Text>
       </View>
 
@@ -91,6 +104,10 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     marginTop: 4,
+  },
+  cardLabel: {
+    marginTop: 2,
+    color: Colors.accentGold,
   },
   carouselWrap: {
     flex: 1,

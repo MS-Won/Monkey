@@ -1,17 +1,16 @@
 // frontend/src/components/DreamCard/DreamCard.tsx
-// Dream Goddess 아키타입 카드. 앞면=일러스트(full-bleed)+아르누보 톤 텍스트 오버레이, 뒷면=해몽.
+// Dream Goddess 아키타입 카드. 앞면=일러스트 원본 그대로, 뒷면=해몽.
+// 한글 이름/뜻은 이 컴포넌트가 아니라 CardLabel이 카드 바깥 위쪽에 그린다.
 import React, { useEffect } from 'react';
 import {
   Pressable,
   View,
-  Text,
   Image,
   ScrollView,
   StyleSheet,
   StyleProp,
   ViewStyle,
 } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,7 +19,7 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius } from '../../theme';
+import { Colors, Spacing, Radius } from '../../theme';
 import type { ArchetypeCard } from '../../data/archetypeCards';
 import { getCardArt } from '../../data/cardArt';
 
@@ -42,28 +41,8 @@ type DreamCardProps = {
   growBack?: boolean;
 };
 
-// 카드 종횡비를 일러스트(832×1248 = 정확히 2:3)와 동일하게 맞춰 cover 크롭이 없게 한다.
+// 카드 종횡비를 일러스트(1024×1536 = 정확히 2:3)와 동일하게 맞춰 cover 크롭이 없게 한다.
 const CARD_RATIO = 2 / 3;
-
-function pad2(n: number) {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
-/** 텍스트 가독성용 상/하단 스크림(어두운 그라디언트). react-native-svg로 구현. */
-function Scrim({ position }: { position: 'top' | 'bottom' }) {
-  const top = position === 'top';
-  return (
-    <Svg style={[styles.scrim, top ? styles.scrimTop : styles.scrimBottom]} pointerEvents="none">
-      <Defs>
-        <LinearGradient id={`scrim-${position}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#050310" stopOpacity={top ? 0.72 : 0} />
-          <Stop offset="1" stopColor="#050310" stopOpacity={top ? 0 : 0.86} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#scrim-${position})`} />
-    </Svg>
-  );
-}
 
 export default function DreamCard({
   card,
@@ -126,7 +105,8 @@ export default function DreamCard({
         style,
       ]}>
 
-      {/* 앞면 — 카드 일러스트 (id·영문명/의미·한글명/의미가 이미지에 이미 구워져 있어 앱 오버레이 없음) */}
+      {/* 앞면 — 카드 일러스트 원본. id 메달리온과 영문 이름판이 원본에 그려져 있고
+          둘 다 그림과 겹치지 않으므로 앱에서 얹는 오버레이는 없다. */}
       <Animated.View style={[styles.face, styles.frontFace, frontStyle]}>
         {art ? (
           // contain: 일러스트(프레임 포함) 전체를 잘림 없이 카드에 맞춘다.
@@ -192,77 +172,6 @@ const styles = StyleSheet.create({
   },
   artFallback: {
     backgroundColor: Colors.backgroundElevated,
-  },
-  scrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-  },
-  scrimTop: {
-    top: 0,
-    height: '30%',
-  },
-  scrimBottom: {
-    bottom: 0,
-    height: '42%',
-  },
-  frontOverlay: {
-    flex: 1,
-    padding: Spacing.md,
-    justifyContent: 'space-between',
-  },
-  topBlock: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  cardNo: {
-    ...Typography.overline,
-    color: Colors.accentGold,
-    letterSpacing: 2,
-  },
-  symbol: {
-    color: '#FDF6E3',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  symbolCompact: {
-    fontSize: 16,
-    letterSpacing: 1.5,
-    lineHeight: 22,
-  },
-  bottomBlock: {
-    alignItems: 'center',
-    gap: Spacing.xs,
-    width: '100%',
-  },
-  holoRule: {
-    width: 40,
-    height: 1,
-    backgroundColor: Colors.accentGold,
-    opacity: 0.7,
-    marginBottom: 2,
-  },
-  nameKo: {
-    ...Typography.h2,
-    color: Colors.textPrimary,
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  nameKoCompact: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  meaning: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-  },
-  hint: {
-    ...Typography.overline,
-    color: Colors.textMuted,
-    marginTop: 2,
   },
   back: {
     backgroundColor: Colors.backgroundElevated,

@@ -28,6 +28,7 @@ import {Spacing} from '../theme/spacing';
 import Card from '../components/Card';
 import Divider from '../components/Divider';
 import DreamCard from '../components/DreamCard/DreamCard';
+import CardLabel from '../components/DreamCard/CardLabel';
 import CardCreationLoader from '../components/DreamCard/CardCreationLoader';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import BackButton from '../components/BackButton';
@@ -169,6 +170,7 @@ const ResultScreen = () => {
       </Text>
 
       <View style={styles.cardWrapper}>
+        {card && <CardLabel card={card} />}
         {card && (
           <DreamCard
             card={card}

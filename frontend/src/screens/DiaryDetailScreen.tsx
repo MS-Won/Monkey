@@ -12,6 +12,7 @@ import Chip from '../components/Chip';
 import Divider from '../components/Divider';
 import Button from '../components/Button';
 import DreamCard from '../components/DreamCard/DreamCard';
+import CardLabel from '../components/DreamCard/CardLabel';
 import {resolveArchetypeCard} from '../data/archetypeCards';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import BackButton from '../components/BackButton';
@@ -66,6 +67,9 @@ const DiaryDetailScreen = () => {
     );
   }
 
+  // 카드 라벨과 카드가 같은 카드를 가리켜야 하므로 한 번만 뽑아 나눠 쓴다.
+  const card = resolveArchetypeCard(row.keyword, row.dream_text, row.interpretation);
+
   return (
     <View style={styles.screen}>
       <AuroraBackground intensity={0.45} />
@@ -74,8 +78,9 @@ const DiaryDetailScreen = () => {
       <Text style={[Typography.caption, styles.topHint]}>{formatDate(row.created_at)}</Text>
 
       <View style={styles.cardWrapper}>
+        <CardLabel card={card} />
         <DreamCard
-          card={resolveArchetypeCard(row.keyword, row.dream_text, row.interpretation)}
+          card={card}
           flipped={flipped}
           onToggleFlip={() => setFlipped(v => !v)}
           renderBack={() => (
