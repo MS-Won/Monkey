@@ -30,7 +30,11 @@
       "Bash(curl -s -m 180 -w '\\\\n[HTTP %{http_code}] time=%{time_total}s\\\\n' -X POST https://monkey-backend-htu8.onrender.com/interpret -H 'Content-Type: application/json; charset=utf-8' --data-binary @interpret_body.json)",
       "PowerShell(Tee-Object *)",
       "WebFetch(domain:ms-won.github.io)",
-      "Bash(unzip -p android/app/build/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml)"
+      "Bash(unzip -p android/app/build/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml)",
+      "PowerShell(adb devices)",
+      "PowerShell($env:ANDROID_HOME = \"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Android\\\\Sdk\"; [System.Diagnostics.Process]::Start\\(\"$env:ANDROID_HOME\\\\emulator\\\\emulator.exe\", \"-avd Medium_Phone -netdelay none -netspeed full\"\\) | Select-Object Id, ProcessName)",
+      "PowerShell(adb shell *)",
+      "Bash(sed 's/\\\\\\(OPENAI_API_KEY=\\\\\\).*/\\\\1***/')"
     ]
   }
 }
