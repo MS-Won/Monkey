@@ -2,14 +2,17 @@
 # ------------------------------------------------------------
 # Monkey Flask Server (Port: 5001)
 # 역할:
-# 1) /reading : 꿈 전문 하나로 종합 해몽 + 오늘의 한마디 + 카테고리 해몽(OpenAI 1회)
+# 1) /reading : 꿈 전문 하나로 종합 해몽 + 오늘의 한마디 + 카테고리 해몽
+#               (OpenAI 2회를 병렬로 — 대기시간을 줄이려고 출력을 둘로 쪼갰다)
 # 2) /health  : 헬스체크
 # ------------------------------------------------------------
 
 import os
 import json
 import re
+import time
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from typing import Tuple
 
 from flask import Flask, request, jsonify
@@ -76,19 +79,36 @@ PERSONA_SYSTEM = (
 
 # /reading 전용 지시. PERSONA_SYSTEM 뒤에 붙어 출력 형식을 규정한다.
 # OpenAI JSON 모드는 메시지에 "json"이라는 단어가 있어야 동작한다.
-READING_INSTRUCTION = (
+#
+# 지시를 둘로 나눈 이유: 대기시간은 사실상 출력 토큰 수에 비례하는데, 한 번의
+# 호출로 ~600토큰을 뽑으면 그만큼 통째로 기다려야 한다. 종합 해몽과 카테고리는
+# 서로의 결과를 필요로 하지 않으므로 두 호출로 나눠 동시에 던지면 벽시계 시간이
+# 두 호출의 합이 아니라 둘 중 긴 쪽이 된다.
+SUMMARY_INSTRUCTION = (
     "아래 형식의 JSON 하나만 출력하세요. 다른 텍스트는 붙이지 마세요.\n"
     "{\n"
     '  "summary": "종합 해몽",\n'
-    '  "oneLine": "오늘의 한마디",\n'
-    '  "categories": [ { "key": "...", "body": "..." } ]\n'
+    '  "oneLine": "오늘의 한마디"\n'
     "}\n\n"
     "규칙:\n"
     "- summary: 꿈 전체를 하나의 이야기로 엮은 종합 해몽. 8~12문장으로 충분히 풀어 쓴다. "
     "장면을 순서대로 짚어가며 각 상징이 무슨 뜻인지, 그것이 상담자의 실제 삶에서 "
     "어떻게 나타날 수 있는지까지 이야기하듯 이어 준다.\n"
     "- oneLine: 오늘 하루 마음에 품을 말 한 문장.\n"
-    "- categories: key는 반드시 다음 중에서만 고른다 — "
+    "- **분량을 채우려고 같은 말을 바꿔 쓰거나 늘어놓지 않는다.** 할 이야기가 남아 있을 때만 "
+    "길게 쓰고, 꿈에 근거가 없으면 짧게 끝내는 편이 낫다.\n"
+    "- 제목·이모지·마크다운 기호를 넣지 않는다. 본문 문장만 쓴다."
+)
+
+CATEGORIES_INSTRUCTION = (
+    "아래 형식의 JSON 하나만 출력하세요. 다른 텍스트는 붙이지 마세요.\n"
+    "{\n"
+    '  "categories": [ { "key": "...", "body": "..." } ]\n'
+    "}\n\n"
+    "규칙:\n"
+    "- **꿈 전체를 아우르는 종합 해몽은 다른 자리에서 따로 들려주고 있다.** 그러니 여기서는 "
+    "꿈을 처음부터 다시 요약하지 말고, 각 항목에 해당하는 대목만 한 걸음 더 깊이 파고든다.\n"
+    "- key는 반드시 다음 중에서만 고른다 — "
     "luck(행운), caution(주의운), relationship(인간관계), wealth(재물운), "
     "work(직장·학업운), health(건강운).\n"
     "- **꿈에 실제 근거가 있는 것만 2~4개** 고른다. 근거가 없으면 그 항목을 넣지 않는다. "
@@ -97,11 +117,8 @@ READING_INSTRUCTION = (
     "(1) 꿈의 어느 대목에서 그렇게 읽히는지 근거를 짚고, (2) 그것이 상담자의 실제 생활에서 "
     "어떤 모습으로 나타날 수 있는지 그려 보이고, (3) 앞으로 어떻게 하면 좋을지 손에 잡히는 "
     "조언까지 담는다.\n"
-    "- **body는 summary에서 이미 한 이야기를 되풀이하지 않는다.** summary가 꿈 전체의 흐름을 "
-    "말한다면, body는 그 항목에 해당하는 이야기만 한 걸음 더 깊이 들어간다. "
-    "카테고리끼리도 같은 말을 나눠 쓰지 않는다.\n"
-    "- **분량을 채우려고 같은 말을 바꿔 쓰거나 늘어놓지 않는다.** 할 이야기가 남아 있을 때만 "
-    "길게 쓰고, 꿈에 근거가 없으면 짧게 끝내는 편이 낫다.\n"
+    "- **카테고리끼리 같은 말을 나눠 쓰지 않는다.** 항목마다 다른 이야기를 한다.\n"
+    "- **분량을 채우려고 같은 말을 바꿔 쓰거나 늘어놓지 않는다.**\n"
     "- 제목·이모지·마크다운 기호를 body 안에 넣지 않는다. 본문 문장만 쓴다.\n"
     "- 같은 key를 두 번 쓰지 않는다."
 )
@@ -220,9 +237,12 @@ def reading():
     if too_long:
         return too_long
 
+    t_start = time.perf_counter()
+
     # 전통 해몽 사전 매칭은 꿈 전문에 대해 1회만 수행한다.
     matched = dream_lexicon.match_symbols(text, okt, normalize_sentence)
     grounding = dream_lexicon.build_grounding_block(matched)
+    t_lexicon = time.perf_counter() - t_start
 
     if grounding:
         grounding_section = (
@@ -237,33 +257,62 @@ def reading():
             "상징을 억지로 지어내지 말고, 꿈의 정서와 분위기를 전통 어조로 담백하게 풀어 주세요.)"
         )
 
-    messages = [
-        {"role": "system", "content": PERSONA_SYSTEM + "\n\n" + READING_INSTRUCTION},
-        {
-            "role": "user",
-            "content": (
-                f'상담자가 들려준 꿈: "{text}"\n'
-                "이 꿈을 전통 해몽으로 풀어 주세요."
-                f"{grounding_section}"
-            ),
-        },
-    ]
+    user_content = (
+        f'상담자가 들려준 꿈: "{text}"\n'
+        "이 꿈을 전통 해몽으로 풀어 주세요."
+        f"{grounding_section}"
+    )
 
-    try:
+    def ask(instruction):
+        """지시문 하나로 GPT를 부르고 파싱한 dict와 사용량을 돌려준다."""
         raw_text, in_tok, out_tok, cost = openai_chat(
-            messages,
+            [
+                {"role": "system", "content": PERSONA_SYSTEM + "\n\n" + instruction},
+                {"role": "user", "content": user_content},
+            ],
             model=CHAT_MODEL,
             temperature=0.65,
             response_format={"type": "json_object"},
         )
-        parsed = json.loads(raw_text)
-        result = reading_schema.normalize_reading(parsed)
+        return json.loads(raw_text), in_tok, out_tok, cost
+
+    # 종합 해몽과 카테고리를 동시에 던진다. 둘 다 네트워크 대기라 스레드로 충분하다.
+    t_openai_start = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_summary = pool.submit(ask, SUMMARY_INSTRUCTION)
+        f_categories = pool.submit(ask, CATEGORIES_INSTRUCTION)
+
+        try:
+            summary_part, in_a, out_a, cost_a = f_summary.result()
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"json parse failed: {e}"}), 500
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        # 카테고리만 실패하면 종합 해몽이라도 보여준다(호출을 쪼갠 덕에 가능해진 선택).
+        try:
+            categories_part, in_b, out_b, cost_b = f_categories.result()
+        except Exception as e:
+            app.logger.warning("[/reading] categories call failed: %s", e)
+            categories_part, in_b, out_b, cost_b = None, 0, 0, 0.0
+
+    t_openai = time.perf_counter() - t_openai_start
+
+    try:
+        result = reading_schema.merge_reading_parts(summary_part, categories_part)
     except reading_schema.ReadingValidationError as e:
         return jsonify({"error": f"invalid reading: {e}"}), 500
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"json parse failed: {e}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+    in_tok, out_tok, cost = in_a + in_b, out_a + out_b, cost_a + cost_b
+
+    # 어디서 시간이 나가는지 보려고 구간을 재서 함께 돌려준다.
+    # 프론트는 모르는 필드를 무시하므로 응답에 실어도 안전하다.
+    timings = {
+        "lexicon": round(t_lexicon, 2),
+        "openai": round(t_openai, 2),
+        "total": round(time.perf_counter() - t_start, 2),
+    }
+    app.logger.info("[/reading] timings=%s outputToken=%s", timings, out_tok)
 
     return jsonify({
         "summary": result["summary"],
@@ -274,20 +323,51 @@ def reading():
         "inputToken": in_tok,
         "outputToken": out_tok,
         "totalCostUsd": cost,
+        "timings": timings,
     })
 
 
 # =========================
-# 5) 헬스체크 (호스트 워밍업/모니터링용)
+# 5) Okt(JVM) 워밍업
+# =========================
+# Okt()를 만드는 것만으로는 JVM이 "준비"되지 않는다. 실제 형태소 분석이 처음
+# 불릴 때 클래스 로딩과 JIT가 일어나는데, 이게 개발 PC에서 2.5초, Render 무료
+# 플랜(0.1 CPU)에서는 30초 안팎이 걸린다. 그동안 이 비용을 앱의 첫 사용자가
+# 통째로 물고 있었다(프로덕션 첫 /reading 38.3초 vs 두 번째 7.0초 실측).
+#
+# 그래서 모듈 임포트 시점에 요청과 똑같은 경로를 한 번 태워 둔다. gunicorn은
+# 워커를 띄우며 이 모듈을 임포트하므로, Render가 /health로 헬스체크를 통과시킬
+# 무렵이면 워밍업이 이미 끝나 있다.
+_OKT_READY = False
+
+
+def warm_up_okt() -> None:
+    global _OKT_READY
+    try:
+        started = time.perf_counter()
+        # 실제 요청과 같은 함수를 태워야 같은 코드 경로가 데워진다.
+        dream_lexicon.match_symbols("돼지가 물속에서 나오는 꿈", okt, normalize_sentence)
+        _OKT_READY = True
+        app.logger.info("[warmup] Okt ready in %.2fs", time.perf_counter() - started)
+    except Exception as e:
+        # 워밍업 실패는 치명적이지 않다. 첫 요청이 느려질 뿐 동작은 한다.
+        app.logger.warning("[warmup] Okt warm-up failed: %s", e)
+
+
+warm_up_okt()
+
+
+# =========================
+# 6) 헬스체크 (호스트 워밍업/모니터링용)
 # =========================
 @app.get("/health")
 def health():
-    # Okt(JVM)까지 로드되어 실제 요청을 받을 준비가 됐는지 확인
-    return jsonify({"ok": True})
+    # Okt(JVM) 워밍업까지 끝나 실제 요청을 받을 준비가 됐는지 확인
+    return jsonify({"ok": True, "oktReady": _OKT_READY})
 
 
 # =========================
-# 6) 서버 실행
+# 7) 서버 실행
 # =========================
 # 프로덕션(컨테이너)에서는 gunicorn이 `keyword_server:app`을 직접 구동하므로
 # 아래 app.run 블록은 로컬 개발 실행 전용이다.
