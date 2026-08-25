@@ -94,8 +94,9 @@ android {
         // versionCode 1은 2026-07-18 Play에 업로드되어 소진됨(같은 코드 재업로드 불가).
         // 2는 2026-07-26 빌드했으나 업로드 전 해몽 카테고리 개편이 들어와 폐기.
         // 코드/에셋을 고칠 때마다 반드시 올릴 것.
-        versionCode 3
-        versionName "1.1"
+        // 4: targetSdk 36(Android 16) 상향 + 그간의 프론트 수정 포함.
+        versionCode 4
+        versionName "1.2"
     }
     signingConfigs {
         debug {

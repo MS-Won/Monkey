@@ -41,9 +41,64 @@ Monkey는 꿈 기록 + 전통 해몽 앱입니다. 해석의 **뿌리는 전통 
 - [아키타입 카드 30종 정의](../docs/design/archetype-cards.md) — 카드 데이터(코드) 단일 소스
 - 카드 일러스트 생성: `scripts/gen-card-art.py` (무료 Pollinations FLUX 기본, provider 교체 가능) → `frontend/assets/images/cards/`, `frontend/src/data/cardArt.ts` 매핑
 
-## Progress (2026-07-27)
+## Progress (2026-08-25)
 
 > 상세 로그는 auto-memory `project_monkey_status.md`(추가 15~24) 참고. 여기선 현황만.
+
+### 이번 세션(08-25) 완료 — targetSdk 36(Android 16) 상향
+
+Play Console 경고: **2026-11-01부터 targetSdk 36 미만은 앱 업데이트 불가.** 대응 완료.
+
+- `compileSdk`/`targetSdk` 35 → **36**, `buildToolsVersion` 36.0.0, `versionCode 4`/`versionName 1.2`.
+- **예측형 뒤로가기 옵트아웃**: targetSdk 36부터 기본 ON이 되는데 RN 0.79 코어에는
+  `OnBackInvokedCallback` 구현이 없다(`ReactAndroid/src` 전수 검색 0건). 켜지면 뒤로가기가
+  JS `BackHandler`/네비게이션을 건너뛰고 앱을 바로 종료한다. 매니페스트에
+  `android:enableOnBackInvokedCallback="false"`로 명시적으로 끈다. 공식 문서상 API 36에서도
+  이 옵트아웃은 **유효**(단 "임시 수단"으로 명시). **RN 0.81+로 올리면 이 줄을 지울 것.**
+- **Edge-to-edge**: API 36부터 `windowOptOutEdgeToEdgeEnforcement` 옵트아웃이 막혔다.
+  다만 이 앱은 애초에 그 속성을 쓴 적이 없어(`styles.xml` 확인) targetSdk 35 시절부터 이미
+  강제 적용 중이었다 → 35→36으로 새로 깨지는 부분은 없다.
+- `android.suppressUnsupportedCompileSdk=36` — AGP 8.8.2는 compileSdk 36을 "미검증"이라며
+  경고만 낸다. **AGP 8.9+로 올리면 이 줄은 지워도 된다.**
+
+**검증(정적) 전항목 통과**
+
+| 항목 | 결과 |
+|---|---|
+| APK 매니페스트 | `targetSdkVersion 36` / `compileSdk 36` / `versionCode 4` / `versionName 1.2` |
+| 16KB 페이지(Play 필수) | arm64 `.so` 12개 전부 LOAD 정렬 `0x4000` |
+| zip 정렬 | `zipalign -c -P 16 -v 4` → Verification successful |
+| JS 번들 | Render 주소 O / `/reading` O / localhost·10.0.2.2 X / 구 엔드포인트 X |
+
+**⚠️ 실기(에뮬레이터) 검증은 아직 안 했다.** 사용자 PC가 게임 중이라 미뤘다. 다음 세션에서
+`Medium_Phone` AVD(API 37 · 16KB 페이지 이미지)로 확인할 것 — **뒤로가기 동작**(옵트아웃이
+실제로 먹는지)과 **상·하단 인셋 침범** 두 가지가 핵심이다.
+
+### ⚠️ 빌드 실패의 진짜 원인 — SDK 파일 손상(targetSdk와 무관)
+
+`:app:bundleReleaseResources`가 `javax.xml.bind.UnmarshalException`으로 죽었다. 빌드 캐시를
+지워도 재현됐는데, 원인은 **`platforms/android-36/package.xml`이 18510바이트 전부 널바이트**로
+깨진 것이었다(mtime 2026-08-25 21:18). 사용자 PC가 CPU 과부하로 멈추면서 Android 16 SDK
+설치 중 파일 내용이 유실됐다 — 크기만 할당되고 내용은 0. AGP가 이 파일을 JAXB로 못 읽는다.
+
+`cmdline-tools`가 설치돼 있지 않아 재다운로드가 불가능해, 무손상 `android-35/package.xml`에서
+api-level·extension-level·path·display-name만 교체해 재구성했다(값의 근거는 손상되지 않은
+`android-36/source.properties`). `35`→`36`, `13`→`17` 모두 같은 글자 수라 결과가 원본
+할당 크기와 **바이트 단위로 정확히 일치(18510)** 한다. 손상본은 스크래치패드에 백업.
+
+> **교훈**: 이 PC는 CPU가 넘치면 멈추고, 멈추면 쓰던 파일이 영점화된다. 무거운 빌드는
+> `--max-workers=2` + 프로세스 우선순위 `BelowNormal`로 돌릴 것.
+
+### 미결 — 이번 범위 밖(사용자 판단 필요)
+
+- `MainActivity`에 **`android:configChanges`가 없다**(RN 기본 템플릿엔 있음). 회전·다크모드
+  전환 때 액티비티가 재생성돼 JS 상태(작성 중인 꿈 텍스트)가 날아간다. API 36의 "대화면
+  ≥600dp에서 `screenOrientation` 무시" 변경과 맞물려 태블릿·폴더블에서 더 잘 드러난다.
+  폰 전용(<600dp)이면 당장은 영향 없음.
+
+## Progress (2026-07-27)
+
+> 이전 세션 기록.
 
 ### 이번 세션(07-27) 완료 — 해몽 카테고리 개편
 

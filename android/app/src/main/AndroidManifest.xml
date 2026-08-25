@@ -5,12 +5,17 @@
     <!-- 음성 입력(@react-native-voice)용 마이크 권한 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- enableOnBackInvokedCallback: targetSdk 36부터 예측형 뒤로가기가 기본 ON이 된다.
+         RN 0.79 코어는 OnBackInvokedCallback을 구현하지 않아, 켜지면 뒤로가기가
+         JS BackHandler/네비게이션을 거치지 않고 앱을 바로 종료한다. 그래서 명시적으로 끈다.
+         RN을 0.81+로 올려 예측형 뒤로가기를 지원하면 이 줄을 지울 것. -->
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="false"
         android:theme="@style/AppTheme">
 
         <activity
