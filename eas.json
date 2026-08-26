@@ -7,18 +7,33 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "SERVER_BASE_URL": "https://monkey-backend-htu8.onrender.com"
+      },
       "ios": {
         "simulator": true
       }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "SERVER_BASE_URL": "https://monkey-backend-htu8.onrender.com"
+      },
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "SERVER_BASE_URL": "https://monkey-backend-htu8.onrender.com"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
