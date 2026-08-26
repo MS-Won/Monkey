@@ -238,6 +238,8 @@ AAB JS 번들에서 문자열 0건 검증. 부수효과로 **해몽 본문이 �
 **원숭이 그래픽 통일** — 앱 내부는 이미 새 점술가 원숭이였고 **스토어 그래픽만 옛
 라인아트**였다(`gen-store-graphics.ps1`의 `Draw-Mascot`가 코드로 그림). 피처 그래픽
 재생성 + `scripts/refresh-splash-screenshot.py` 신규로 스플래시 스크린샷 합성.
+(07-27에 스크린샷을 실기에서 다시 캡처하면서 이 스크립트는 필요 없어져 삭제했다.
+스크린샷은 이제 `scripts/gen-store-screenshots.py`가 `store-assets/raw/`에서 만든다.)
 `gen-store-graphics.ps1`에서 `icon-512.png` 생성 코드 제거(덮어쓰기 사고 방지).
 
 ### 남은 일

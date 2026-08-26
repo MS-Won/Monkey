@@ -25,7 +25,9 @@ AAB: `android/app/build/outputs/bundle/release/app-release.aab` (프로덕션 �
   Play Console은 `input[type=file]`을 DOM에 두지 않고 네이티브 파일 선택창을 띄우므로 브라우저 자동화로 업로드 불가.
   - 앱 아이콘 512×512 → `icon-512.png` (463KB, 1MB 제한 충족)
   - 피처 그래픽 1024×500 → `feature-graphic-1024x500.png`
-  - 폰 스크린샷 → `screenshot-1-splash` / `2-home` / `3-diary-cards` / `4-stats` / `5-card` / `6-interpretation` (전부 1080×2400)
+  - 폰 스크린샷 **5장**, 이 순서로 올리기 → `2-home` / `5-card` / `6-interpretation` / `3-diary-cards` / `4-stats` (전부 1080×2400)
+    ⚠️ 2026-07-27에 **6장 전부 새 이미지로 교체**됐다(한글 꿈으로 재캡처 + 홍보문구 합성). 예전에 올린 게 있으면 지우고 다시 올릴 것.
+    스플래시(`screenshot-1-splash`)는 뺐다.
 
 ## 진행 상황 (2026-07-26 갱신) — 앱 설정 10/11 완료
 완료: 개인정보처리방침 / 로그인 세부정보(제한 없음) / 광고(없음) / 콘텐츠 등급(전 기관 최저 연령: ESRB E·PEGI 3·GRAC 전체이용가) /

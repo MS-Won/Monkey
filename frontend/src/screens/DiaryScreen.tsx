@@ -46,7 +46,7 @@ export default function DiaryScreen() {
     return (
       <View style={styles.emptyContainer}>
         <AuroraBackground intensity={0.45} />
-        <Text style={Typography.h1}>꿈기록</Text>
+        <Text style={Typography.h1}>꿈 기록</Text>
         <View style={styles.emptyBody}>
           <Mascot size={72} holo />
           <Text style={[Typography.caption, styles.emptyText]}>아직 기록된 꿈이 없어요.</Text>
@@ -64,7 +64,7 @@ export default function DiaryScreen() {
     <View style={styles.screen}>
       <AuroraBackground intensity={0.45} />
       <View style={styles.headerBlock}>
-        <Text style={Typography.h1}>꿈기록</Text>
+        <Text style={Typography.h1}>꿈 기록</Text>
         <Ornament width={140} style={styles.headerOrnament} />
         <Text style={[Typography.caption, styles.dateLabel]}>
           {focusedItem ? formatDate(focusedItem.created_at) : ' '}
@@ -96,7 +96,9 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
+    // 탭 화면이라 상태바 뒤로 제목이 들어간다. 상세 화면(paddingTop 72)이
+    // 뒤로가기 버튼 자리를 함께 비우는 값이라, 그보다 조금 작게 잡는다.
+    paddingTop: 56,
   },
   headerOrnament: {
     alignSelf: 'flex-start',
@@ -117,6 +119,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.backgroundPrimary,
     padding: Spacing.xl,
+    paddingTop: 56,
     gap: Spacing.sm,
   },
   emptyBody: {
