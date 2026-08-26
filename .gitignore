@@ -37,3 +37,6 @@ backend/health_test.log
 
 # Kotlin 빌드 캐시 (AGP가 생성)
 android/.kotlin/
+
+# git worktree 작업 디렉터리(로컬 전용)
+.claude/worktrees/

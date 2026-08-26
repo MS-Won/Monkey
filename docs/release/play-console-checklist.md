@@ -1,4 +1,11 @@
-# Play Console 업로드 치트시트 (인증 완료 후 진행)
+# Play Console 업로드 치트시트
+
+**현재 올릴 빌드: versionCode 4 / versionName 1.2 (2026-08-26 재빌드)**
+`android/app/build/outputs/bundle/release/app-release.aab` (130MB)
+- targetSdk 36(Android 16) — Play 2026-11-01 요구사항 충족. 이게 이번 업데이트의 목적이다.
+- 업로드 키 서명·Render 백엔드 주소 구움·에뮬(API 37) 실기 검증 완료.
+- 출시 노트 복붙용: `docs/release/release-notes-v1.2.md`
+- ⚠️ versionCode 4는 아직 Play에 올라간 적 없음. 다시 고치면 5로 올릴 것.
 
 인증이 풀린 뒤 이 순서대로 진행하면 됩니다. 값은 전부 복붙 가능하게 정리했습니다.
 AAB: `android/app/build/outputs/bundle/release/app-release.aab` (프로덕션 백엔드 URL 구워짐·서명 완료 확인됨)
@@ -58,8 +65,10 @@ AAB: `android/app/build/outputs/bundle/release/app-release.aab` (프로덕션 �
 - **광고**: 없음.
 
 ## 4. 클로즈드 테스트
-- 테스트 → **비공개 테스트** 트랙 생성
-- `app-release.aab` 업로드
+- 테스트 → **비공개 테스트** 트랙 → **새 버전 만들기**
+- `app-release.aab` 업로드 — ⚠️ **사용자가 직접**. Play Console은 네이티브 파일 선택창을 띄우므로
+  브라우저 자동화로 파일을 넣을 수 없다(스토어 그래픽도 동일).
+- 출시 노트: `docs/release/release-notes-v1.2.md`의 붙여넣기용 블록
 - 테스터 이메일 목록 등록 (또는 Google 그룹)
 - ⚠️ **신규 개인 계정: 최소 12명이 14일 연속 옵트인·실사용**해야 프로덕션 전환 가능.
   설치만 하고 미사용 시 "참여 부족"으로 리셋 위험 → 실제로 반복 사용할 테스터 확보가 핵심.
