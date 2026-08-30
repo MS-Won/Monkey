@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,18 @@ import {
   StyleSheet,
   Platform,
   UIManager,
-  Alert,
   TextStyle,
 } from 'react-native';
 import {RouteProp, useRoute} from '@react-navigation/native';
 import {RootStackParamList} from '../../navigator';
-import {fetchReading, Reading, ReadingCategory} from '../logic/reading';
+import {
+  fetchReading,
+  Reading,
+  ReadingCategory,
+  ReadingError,
+  ReadingErrorKind,
+  ReadingPhase,
+} from '../logic/reading';
 import {
   CATEGORY_TITLES,
   sortCategoriesByProfile,
@@ -32,6 +38,7 @@ import CardLabel from '../components/DreamCard/CardLabel';
 import CardCreationLoader from '../components/DreamCard/CardCreationLoader';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import BackButton from '../components/BackButton';
+import Button from '../components/Button';
 
 import {
   selectArchetypeCard,
@@ -81,6 +88,60 @@ function calculateLuckyScore(text: string) {
 }
 
 /**
+ * 무료 플랜 서버가 잠들어 있으면 첫 응답까지 1분 가까이 걸린다. 그동안 아무
+ * 설명 없는 스피너만 돌면 사용자는 앱이 멈춘 줄 안다. 기다린 시간에 따라
+ * 말을 바꿔 "느리지만 살아 있다"는 것을 알린다.
+ */
+function loaderSublabel(elapsedMs: number, phase: ReadingPhase): string {
+  if (phase === 'retrying') {
+    return '연결이 잠시 끊겼어요. 다시 시도하는 중입니다…';
+  }
+  if (elapsedMs < 8000) {
+    return '잠시만 기다려주세요';
+  }
+  if (elapsedMs < 25000) {
+    return '서버를 깨우고 있어요. 처음 한 번은 조금 걸립니다…';
+  }
+  return '거의 다 됐어요. 첫 해몽은 1분까지 걸릴 수 있습니다…';
+}
+
+/** 실패 원인별로 사용자가 다음에 무엇을 하면 되는지 알려준다. */
+function errorMessage(kind: ReadingErrorKind): string {
+  switch (kind) {
+    case 'network':
+      return `인터넷에 연결되지 않았어요.
+연결을 확인한 뒤 다시 시도해주세요.`;
+    case 'timeout':
+      return `서버 응답이 너무 늦어요.
+잠시 후 다시 시도하면 대개 바로 됩니다.`;
+    case 'server':
+      return `서버가 깨어나는 중이라 응답하지 못했어요.
+잠시 후 다시 시도해주세요.`;
+    case 'invalid':
+    default:
+      return `해몽을 만들지 못했어요.
+꿈 내용을 조금 더 자세히 적어보시면 좋아요.`;
+  }
+}
+
+/** 경과 시간을 세는 작은 훅. 로딩 중에만 돈다. */
+function useElapsed(active: boolean): number {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setElapsed(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = setInterval(() => setElapsed(Date.now() - startedAt), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+
+  return elapsed;
+}
+
+/**
  * 긴 본문을 단락으로 끊어 렌더한다.
  *
  * 모델은 개행 없이 한 덩어리로 돌려주는데, 분량을 2배로 늘린 뒤로는
@@ -110,47 +171,71 @@ const ResultScreen = () => {
   const [ordered, setOrdered] = useState<ReadingCategory[]>([]);
   const [card, setCard] = useState<ArchetypeCard | null>(null);
   const [cardFlipped, setCardFlipped] = useState(false);
+  const [phase, setPhase] = useState<ReadingPhase>('waking');
+  const [errorKind, setErrorKind] = useState<ReadingErrorKind | null>(null);
+
+  const elapsed = useElapsed(loading);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setErrorKind(null);
+    setPhase('waking');
+    try {
+      const result = await fetchReading(dreamText, {onPhase: setPhase});
+      setReading(result);
+
+      const profile = await loadUserProfile();
+      const sorted = sortCategoriesByProfile(
+        result.categories,
+        profile.ageGroup,
+        profile.jobGroup,
+      );
+      setOrdered(sorted);
+
+      // 카드 선정: 꿈 원문 + 해몽 본문 전체를 신호로 쓴다.
+      const bodyJoined = [result.summary, ...sorted.map(c => c.body)].join(' ');
+      const drawnCard = selectArchetypeCard(dreamText, bodyJoined);
+      setCard(drawnCard);
+
+      const finalText = renderReadingText(result, sorted);
+      const luckyScore = calculateLuckyScore(finalText);
+      saveDreamDiary(dreamText, finalText, drawnCard.name, luckyScore);
+    } catch (e) {
+      console.log('[ResultScreen] fetchReading error:', e);
+      setErrorKind(e instanceof ReadingError ? e.kind : 'network');
+    } finally {
+      setLoading(false);
+    }
+  }, [dreamText]);
 
   useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      try {
-        const result = await fetchReading(dreamText);
-        setReading(result);
-
-        const profile = await loadUserProfile();
-        const sorted = sortCategoriesByProfile(
-          result.categories,
-          profile.ageGroup,
-          profile.jobGroup,
-        );
-        setOrdered(sorted);
-
-        // 카드 선정: 꿈 원문 + 해몽 본문 전체를 신호로 쓴다.
-        const bodyJoined = [result.summary, ...sorted.map(c => c.body)].join(' ');
-        const drawnCard = selectArchetypeCard(dreamText, bodyJoined);
-        setCard(drawnCard);
-
-        const finalText = renderReadingText(result, sorted);
-        const luckyScore = calculateLuckyScore(finalText);
-        saveDreamDiary(dreamText, finalText, drawnCard.name, luckyScore);
-      } catch (e) {
-        console.log('[ResultScreen] fetchReading error:', e);
-        Alert.alert('오류', '해몽을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     run();
-  }, [dreamText]);
+  }, [run]);
 
   if (loading) {
     return (
       <CardCreationLoader
         label="당신의 꿈을 풀이하고 있습니다"
-        sublabel="잠시만 기다려주세요"
+        sublabel={loaderSublabel(elapsed, phase)}
       />
+    );
+  }
+
+  // 실패했을 때 빈 화면 대신 원인과 재시도 버튼을 보여준다.
+  // 예전에는 Alert 하나 띄우고 아무것도 없는 화면에 사용자를 남겨뒀다.
+  if (errorKind) {
+    return (
+      <View style={styles.screen}>
+        <AuroraBackground intensity={0.45} />
+        <BackButton />
+        <View style={styles.errorBox}>
+          <Text style={Typography.h2}>해몽을 가져오지 못했어요</Text>
+          <Text style={[styles.bodyText, styles.errorText]}>
+            {errorMessage(errorKind)}
+          </Text>
+          <Button label="다시 시도" variant="primary" onPress={run} />
+        </View>
+      </View>
     );
   }
 
@@ -258,6 +343,16 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 16,
+  },
+  errorBox: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.lg,
+  },
+  errorText: {
+    textAlign: 'center',
   },
 });
 
