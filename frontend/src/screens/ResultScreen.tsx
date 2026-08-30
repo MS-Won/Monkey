@@ -233,7 +233,12 @@ const ResultScreen = () => {
           <Text style={[styles.bodyText, styles.errorText]}>
             {errorMessage(errorKind)}
           </Text>
-          <Button label="다시 시도" variant="primary" onPress={run} />
+          <Button
+            label="다시 시도"
+            variant="primary"
+            onPress={run}
+            style={styles.retryButton}
+          />
         </View>
       </View>
     );
@@ -353,6 +358,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
+  },
+  // 공용 Button은 부모가 가로로 늘려주는 것을 전제로 좌우 패딩이 없다.
+  // 여기서는 가운데 정렬이라 스스로 폭을 가져야 글자가 테두리에 붙지 않는다.
+  retryButton: {
+    paddingHorizontal: Spacing.xl,
+    minWidth: 200,
   },
 });
 
