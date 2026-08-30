@@ -68,6 +68,47 @@ AAB: `android/app/build/outputs/bundle/release/app-release.aab` (프로덕션 �
 
 ---
 
+---
+
+## 2-2. ⚠️ 업로드가 거부됐던 진짜 이유 — 서명 키 (2026-08-30 실측)
+
+Play Console 임시 출시 draft에 남아 있던 실패 기록:
+
+> `app-release.aab` — **"Android App Bundle이 잘못된 키로 서명되었습니다.
+> 제대로 된 서명 키로 App Bundle에 서명한 다음 다시 시도해 보세요."**
+
+즉 **업로드는 실제로 시도됐고 Play가 거부**한 것이다. 파일 크기나 파일 선택
+문제가 아니었다. 이 앱은 **Play 앱 서명**을 쓰므로 AAB는 반드시 **업로드 키**로
+서명돼 있어야 한다.
+
+**Play가 기대하는 업로드 키 인증서** (앱 서명 → 업로드 키 인증서):
+
+| | |
+|---|---|
+| SHA-256 | `AA:26:27:D0:A1:E4:73:55:DB:4A:CD:BF:16:0C:0A:13:DF:45:B1:A3:7A:9F:26:F9:2F:51:6C:4E:79:35:5C:A9` |
+| SHA-1 | `EB:24:E1:22:A9:AF:DB:DB:3D:58:A5:59:EB:88:F9:90:89:2B:24:CE` |
+| MD5 | `E3:0C:F4:C2:37:34:E7:F4:86:44:AD:D9:95:37:CF:92` |
+
+**이 PC에서 빌드한 AAB는 위와 정확히 일치한다**(2026-08-30 확인). 따라서
+거부된 파일은 다른 키로 서명된 것 — 가장 그럴듯한 원인은 **키스토어가 없는
+다른 PC에서 빌드**한 경우다. `android/app/build.gradle`의 릴리스 서명 설정은
+`keystore.properties`가 없으면 조용히 디버그 키로 폴백하므로, 빌드는 성공하지만
+Play가 거부하는 AAB가 나온다(`docs/HANDOFF.md` 경로 주의).
+
+**업로드 전 항상 확인할 것:**
+
+```bash
+cd <스크래치>
+unzip -q -o "android/app/build/outputs/bundle/release/app-release.aab" -d aab
+keytool -printcert -file aab/META-INF/*.RSA | grep SHA256
+# => AA:26:27:D0:... 와 일치해야 한다. UPLOAD.RSA 가 아니라 CERT.RSA 면
+#    디버그 키로 서명된 것이니 keystore.properties 부터 확인할 것.
+```
+
+정정: 이전 기록의 "막히는 건 업로드 도구 10MB 한도"는 **Claude 쪽 자동화 제약**일
+뿐, Play가 거부한 이유가 아니다. 사용자가 브라우저에서 직접 올릴 때는 크기 제한이
+걸리지 않는다(versionCode 1도 같은 크기로 올라갔다).
+
 ## 3. 앱 콘텐츠 (좌측 메뉴)
 - **개인정보처리방침 URL**: `https://ms-won.github.io/Monkey/`
 - **데이터 안전(Data safety)** — 아래 표대로 답변:
