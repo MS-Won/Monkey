@@ -34,16 +34,14 @@
 * [x] **[2026-07-12~19] 출시 파이프라인 실행 완료** — 백엔드 Render 배포(`https://monkey-backend-htu8.onrender.com`, `/health`·`/interpret` 프로덕션 검증)+`SERVER_BASE_URL` 교체, 해몽 품질 개선(gpt-4o-mini+프롬프트), 앱 아이콘/인앱 캐릭터/스플래시를 원숭이 점술가 일러스트로 교체, 업로드 키스토어 생성(`android/app/upload-keystore.jks`, **백업 필수**), 방침 GitHub Pages 라이브(`https://ms-won.github.io/Monkey/`), 스토어 그래픽 자산(`docs/release/store-assets/`), **패키지명 `com.xellos0304.monkey`→`com.mswon.monkey` 확정 후 서명 AAB 재빌드**(2026-07-19, 매니페스트 검증됨).
 * [x] **[2026-08-26] targetSdk 36 실기 검증 + 미머지 UI 수정 머지 후 AAB 재빌드** — 에뮬(AVD `Medium_Phone`, **API 37/Android 17** 이미지로 36보다 엄격하게) 실기 검증: 뒤로가기 3케이스(바텀시트 닫힘 / 스택 화면 복귀 / 루트 종료) 정상, 상·하단 인셋 잘림 없음, 릴리스 빌드로 Render 백엔드 해몽 e2e 성공. **`worktree-store-screenshots`(2026-07-28)가 main에 머지된 적이 없어 versionCode 4 AAB에 UI 수정 3건이 빠져 있던 것을 발견** → 머지(`b283b8b`) 후 versionCode 4 그대로 재빌드. 재빌드본 검증: AAB 매니페스트 targetSdk 36/versionCode 4, UPLOAD 키 서명, 번들에 Render주소·`/reading` O·localhost X, arm64 `.so` 12개. 머지분이 실제 번들에 들어갔는지 구/신 Hermes 문자열 테이블 비교로 확인(홈 칩 3종 NEW=1/OLD=0). 스모크 테스트로 꿈 기록 헤더 여백·홈 개선 육안 확인.
 * [x] **[2026-08-30] 서버 연결 오류 수정 — 콜드스타트 대응** — 증상은 "해몽을 가져오지 못했습니다". 원인은 코드 버그가 아니라 **Render 무료 플랜의 유휴 슬립**이었다(실측 `/health` 콜드 52.5초 / 웜 0.07초, 웜 `/reading` 6.4초 200). 앱엔 워밍업·재시도·타임아웃·진행표시가 전부 없어서 세션 첫 해몽이 죽은 스피너로 1분을 끌거나 스핀업 중 Render 엣지의 502 HTML을 받고 끝났다. 수정: `frontend/src/logic/serverWarmup.ts` 신규(앱 기동·포그라운드 복귀 시 `/health` 핑, 동시호출 공유, 10분 TTL, 실패해도 무해) + `fetchReading` 재시도·지수백오프·타임아웃·`ReadingError` kind 분류(4xx는 재시도 안 함, 200-non-JSON도 서버오류로 처리) + `ResultScreen` 경과별 로더 문구와 [다시 시도] 버튼. 신규 단위 테스트 18건, tsc 0 / eslint 0 / 백엔드 23건. 커밋 `7fc0299`. **사용자 선택으로 Render는 무료 플랜 유지** — 앱 쪽 흡수만으로 대응.
-* [ ] **사용자 수동 1건 — Play Console 비공개 테스트에 AAB 파일만 올리기** (2026-08-26 기준 그 앞단은 전부 끝냄)
-  트랙 `비공개 테스트 - Alpha`에 **versionCode 4 초안 생성·출시 노트 입력·임시보관 저장 완료**.
-  남은 건 출시 준비 페이지에서 `업로드` → `android/app/build/outputs/bundle/release/app-release.aab`(130MB) 선택뿐.
-  ⚠️ 2026-08-30 재빌드로 **versionCode 5**가 되었다. 출시명·출시노트는 Claude가 갱신해 임시보관 저장까지 끝냈다.
-  **[2026-08-30] 지난 업로드가 실패했던 진짜 이유를 찾았다: 서명 키 불일치.** draft에 남아 있던
-  Play 오류는 "Android App Bundle이 잘못된 키로 서명되었습니다"였다. 즉 파일 크기 문제가 아니라
-  Play가 거부한 것이다. 이 PC에서 빌드한 AAB는 Play 기대 업로드 키 지문과 일치함을 확인했으므로
-  그대로 올리면 통과한다. 상세·자가진단 명령은 `docs/release/play-console-checklist.md` 2-2절.
-  Claude가 대신 못 올리는 건 업로드 도구의 10MB 한도 때문일 뿐이다(사용자 브라우저엔 그 제한 없음).
-  이후 `다음 → 미리보기 및 확인 → 출시 시작`. 상세는 `docs/release/play-console-checklist.md` 2-1절.
+* [x] **[2026-08-31] Play Console 비공개 테스트에 versionCode 5 업로드·검토 제출 완료**
+  트랙 `비공개 테스트 - Alpha`에 `1.2 (5) - 서버 연결 오류 수정` 제출, **검토 중**.
+  **지난 업로드가 실패했던 진짜 이유는 서명 키 불일치였다.** draft에 "Android App Bundle이
+  잘못된 키로 서명되었습니다"라는 Play 거부 기록이 남아 있었다 — 파일 크기 문제가 아니라
+  Play가 되돌려보낸 것이었고, 사용자가 다른 파일을 올렸던 것으로 보인다. 이 PC 빌드는
+  Play 기대 업로드 키 지문과 일치함을 확인했고, 그대로 올리니 통과했다.
+  업로드 전 지문 대조 절차는 `docs/release/play-console-checklist.md` 2-2절.
+  ⚠️ 심사 통과 전까지 테스터에게는 **versionCode 1(7월 빌드)** 이 계속 나간다.
 * [x] **[2026-08-31] Play Console 스토어 스크린샷 5장 교체 완료** — 구 6장 삭제 후 신규 5장 업로드, 순서 `2-home → 5-card → 6-interpretation → 3-diary-cards → 4-stats`로 정렬, 저장 후 검토 제출까지 완료. 1080×2400(9:20)이지만 Play가 자르기 없이 그대로 수용했다.
   **자동화 방법(재사용 가능):** 이 페이지엔 `input[type=file]`이 DOM에 없다 — 「애셋 추가」가 클릭 시점에 만든다. 그래서 `HTMLInputElement.prototype.click`을 먼저 후킹해 **네이티브 파일 대화상자를 차단**한 뒤 버튼을 누르면, Play의 실제 업로더(`SIMPLE-UPLOADER`, `accept=".jpeg,.jpg,.png"`, multiple)가 DOM에 남는다. 거기에 파일을 실어 `change`를 dispatch → 애셋 패널에서 「추가」 클릭. 순서는 썸네일이 HTML5 `draggable=true`라 dragstart/dragover/drop 합성으로 재정렬된다(삽입 방식). 작업 후 후킹과 주입 요소는 반드시 원복할 것.
   ⚠️ 배치 업로드 시 Play가 애셋 패널의 최근순을 뒤집어 넣으므로 순서가 뒤섞인다 — 넣은 뒤 반드시 확인할 것.
@@ -53,6 +51,9 @@
 * [ ] ~~사용자 수동 1건 — Play Console 비공개 테스트 업로드~~ (위 항목들로 분해): 앱 생성은 2026-07-17 완료. 남은 것은 스토어 등록정보 → 앱 콘텐츠(데이터 안전 답변표) → 비공개 테스트 트랙에 `app-release.aab` 업로드(**versionCode 4 / targetSdk 36 재빌드본**) → 테스터 12명 등록. 복붙용 치트시트 `docs/release/play-console-checklist.md`.
 * [ ] Render 플랜 `starter` 실제 적용(대시보드/Blueprint 재동기화, 결제 발생) — `render.yaml`은 이미 `plan: starter`지만 대시보드 미적용이라 **실서비스는 무료 플랜으로 돌고 있다**(2026-08-30 실측 콜드스타트 52.5초로 확인). 2026-08-30 사용자 판단으로 일단 무료 유지 + 앱 쪽 흡수를 택함. 테스터 12명×14일 실사용 구간에서 첫 실행 체감이 계속 문제되면 재검토할 것.
 * [x] **[2026-08-25] targetSdk 36(Android 16) 상향 — Play 2026-11-01 요구사항 대응** — `compileSdk`/`targetSdk` 35→36, buildTools 36.0.0, `versionCode 4`/`versionName 1.2`. RN 0.79엔 `OnBackInvokedCallback` 구현이 없어 매니페스트에 `android:enableOnBackInvokedCallback="false"`(API 36에서도 유효한 옵트아웃, RN 0.81+ 올리면 제거). AGP 8.8.2용 `android.suppressUnsupportedCompileSdk=36`. 정적 검증 전항목 통과(매니페스트 targetSdk 36 / arm64 `.so` 12개 16KB 정렬 / `zipalign -P 16` OK / 번들에 Render주소·`/reading` O, localhost X). 빌드가 처음 깨진 건 targetSdk 탓이 아니라 **PC 프리즈로 `platforms/android-36/package.xml`이 널바이트로 손상**된 것이었고 `android-35`판에서 재구성해 복구. **⚠️ 에뮬 실기 검증 미완**(뒤로가기·인셋 2건) — 다음 세션.
+* [ ] **Play 심사 결과 확인** (2026-08-31 제출, 보통 7일 이내) — AAB versionCode 5와 스토어 스크린샷 5장 두 건이 검토 중. 통과하면 테스터 34명에게 자동 업데이트로 내려가며 서버 연결 오류가 해소된다. 거부되면 사유 확인 후 대응.
+* [ ] **AAB 크기 130MB 축소 검토** — 그중 **94MB가 카드 아트 30장**(장당 약 3MB). 테스터 다운로드 부담이 크고 Play 한도에도 여유가 적다. 표시 해상도로 리사이즈·재압축하면 크게 줄어든다. R8/proguard는 도움이 안 된다(코드가 아니라 이미지가 원인이며 현재 `enableProguardInReleaseBuilds = false`).
+* [ ] **`MainActivity`에 `configChanges` 없음** — 화면 회전 시 상태가 유실된다. 이전 세션부터 미결.
 * [ ] Internal testing
 * [ ] Fix critical bugs
 * [ ] Publish Android Beta

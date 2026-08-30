@@ -4,7 +4,8 @@
 > Claude의 로컬 메모리는 PC를 넘어오지 않는다. 작업을 마칠 때 `/handoff`가 이 파일을 갱신하고,
 > 다른 PC에서는 `/resume`이 이 파일을 읽어 이어받는다.
 
-**마지막 갱신**: 2026-08-31 · 커밋 `3c40605` · 작업 PC: 메인(D:\00 My Project\01 Monkey)
+**마지막 갱신**: 2026-08-31 · 커밋 `e64c8c8` · 작업 PC: 메인(D:\00 My Project\01 Monkey)
+**검증 상태**: `npx tsc --noEmit` 0오류 · `npx jest` 18건 · 백엔드 23건 — 전부 통과(2026-08-31 실행)
 
 ---
 
@@ -13,6 +14,10 @@
 ### 저장소
 - 브랜치 `main`, origin과 동기화됨. 작업 트리 깨끗함.
 - 미머지 브랜치 `worktree-store-screenshots`가 남아 있으나 **내용은 이미 main에 머지됨**(`b283b8b`). 정리해도 무방.
+- **2026-08-31 PC 간 인수인계 체계 도입**(`e64c8c8`). Claude 로컬 메모리가 PC를 넘지 못해
+  다른 PC에서 매번 맥락을 잃던 문제를 해결했다. `CLAUDE.md`(세션마다 자동 로드) →
+  `docs/STATE.md`(이 파일) 순으로 읽히고, `/handoff`로 저장·`/resume`으로 이어받는다.
+  **작업을 마칠 때 `/handoff`를 쓰는 것이 이 체계의 전제다.**
 
 ### 앱
 - **versionCode 5 / versionName 1.2 / targetSdk 36**
