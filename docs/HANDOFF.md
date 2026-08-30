@@ -1,26 +1,16 @@
-# 다른 PC에서 이어서 작업하기
+# 새 PC에서 개발 환경 세팅하기
 
-이 브랜치(`worktree-store-screenshots`)를 다른 컴퓨터에서 그대로 이어받는 방법.
-2026-07-28 기준.
+git에 들어 있지 않아 **PC마다 직접 챙겨야 하는 것들**과, 자주 쓰는 조작법을 모아둔다.
+환경 구성 문서이므로 자주 바뀌지 않는다.
 
-## 1) 지금 어디까지 되어 있나
+> **지금 무슨 작업을 하던 중이었는지**는 여기가 아니라 **`docs/STATE.md`**에 있다.
+> 이어서 작업하려면 `/resume`을 실행하면 된다.
 
-- **앱 수정 3건 완료** (에뮬레이터 실기 확인 + `npx tsc --noEmit` 통과)
-  - 홈 꿈 입력: 긴 꿈을 통째로 받는다는 점이 드러나게 개편
-    (여러 장면짜리 예시 문구, 입력창 220dp, 글자 수 카운터, 특징 칩 3개,
-    "인간관계 · 재물운 · 직장·학업운 · 건강운 · 주의운" 안내)
-  - 꿈 기록 화면: 제목이 상태바에 잘리던 것 수정(`paddingTop: 56`), `꿈기록` → `꿈 기록`
-  - 통계 "이번 달의 꿈 키워드": 카드 이름 옆에 의미 병기 — `고치 (변화 · 전환 · 성장통)`
-- **스토어 폰 스크린샷 5장 교체 완료** — 위 변경이 반영된 새 캡처로 다시 만듦
-- **PR은 아직 없다.** 작업한 환경에 `gh` CLI가 없었다.
-  https://github.com/MS-Won/Monkey/pull/new/worktree-store-screenshots 에서 만들면 된다.
-
-## 2) 새 PC 세팅
+## 1) 새 PC 세팅
 
 ```sh
 git clone https://github.com/MS-Won/Monkey.git
 cd Monkey
-git checkout worktree-store-screenshots
 npm install
 ```
 
@@ -37,6 +27,27 @@ OPENAI_API_KEY=<백엔드용 키>
 로컬 백엔드를 쓸 거면 `http://10.0.2.2:5001`로 바꾸되, **그 상태로 디버그 앱을 설치하면
 앱이 로컬 주소를 계속 들고 있으니** 나중에 로컬 서버를 내리면 해몽이 실패한다.
 
+### ⚠️ 릴리스 서명 키도 git에 없다 — 없으면 Play가 AAB를 거부한다
+
+`android/keystore.properties`와 `android/app/upload-keystore.jks`는 gitignore 대상이다.
+**둘 중 하나라도 없으면 Gradle이 조용히 디버그 키로 폴백한다.** 빌드는 성공하지만
+업로드할 때 Play가 이렇게 되돌려보낸다:
+
+> Android App Bundle이 잘못된 키로 서명되었습니다.
+
+실제로 2026-08-30에 이 문제로 업로드가 막혀 있었다. 릴리스 빌드를 할 PC라면
+키스토어를 안전한 경로로 옮겨와야 한다(공유 채널에 올리지 말 것).
+
+**업로드 전 반드시 지문을 대조한다:**
+
+```sh
+unzip -q -o android/app/build/outputs/bundle/release/app-release.aab -d /tmp/aab
+ls /tmp/aab/META-INF/          # UPLOAD.RSA 여야 한다. CERT.RSA 면 디버그 키 폴백이다.
+keytool -printcert -file /tmp/aab/META-INF/UPLOAD.RSA | grep SHA256
+```
+
+기대값은 `docs/release/play-console-checklist.md` 2-2절에 적어두었다.
+
 ### 실행
 
 ```sh
@@ -44,7 +55,7 @@ npm start          # Metro
 npm run android    # 에뮬레이터에 설치
 ```
 
-## 3) 스크린샷을 다시 만들려면
+## 2) 스크린샷을 다시 만들려면
 
 Python + Pillow만 있으면 된다(에뮬레이터 불필요).
 
@@ -72,19 +83,8 @@ adb shell input keyevent 111   # ESC — 키보드 닫기
 
 `keyevent 4`(뒤로가기)를 두 번 누르면 앱이 종료된다. 키보드는 ESC로 닫을 것.
 
-## 4) git worktree에서 돌릴 때
+## 3) git worktree에서 돌릴 때
 
 `.claude/worktrees/*`에는 `node_modules`가 없다. `metro.config.js`가 이 경우를 감지해
 원본 체크아웃의 `node_modules`를 빌려 쓰도록 되어 있다(원본에서 실행하면 아무 영향 없음).
 `.env`는 gitignore 대상이라 워크트리에도 따로 복사해야 한다.
-
-## 5) 남은 일 — 전부 사용자 브라우저 수동 작업
-
-`docs/release/play-console-checklist.md`에 복붙용 치트시트가 있다.
-
-1. **Play Console 스토어등록정보 → 폰 스크린샷 교체.** 예전 것을 지우고
-   `2-home` → `5-card` → `6-interpretation` → `3-diary-cards` → `4-stats` 순서로 5장 업로드.
-2. **비공개 테스트에 AAB 업로드** — `android/app/build/outputs/bundle/release/app-release.aab`
-   (versionCode 3). ⚠️ 이번 앱 수정은 이 AAB에 **들어 있지 않다.** 반영하려면
-   versionCode를 4로 올리고 다시 빌드해야 한다.
-3. **Render starter 플랜 결제** — `/reading` 응답이 콜드스타트 포함 60~70초까지 걸린다.
