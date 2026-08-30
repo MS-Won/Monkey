@@ -37,10 +37,14 @@
 * [ ] **사용자 수동 1건 — Play Console 비공개 테스트에 AAB 파일만 올리기** (2026-08-26 기준 그 앞단은 전부 끝냄)
   트랙 `비공개 테스트 - Alpha`에 **versionCode 4 초안 생성·출시 노트 입력·임시보관 저장 완료**.
   남은 건 출시 준비 페이지에서 `업로드` → `android/app/build/outputs/bundle/release/app-release.aab`(130MB) 선택뿐.
-  ⚠️ 2026-08-30 재빌드로 **versionCode 5**가 되었다(4는 Play에 올라간 적 없음). 출시 노트도 연결 수정 반영해 갱신됨.
-  자동화가 못 하는 이유는 업로드 도구의 10MB 한도(파일 input 자체는 DOM에 있다).
+  ⚠️ 2026-08-30 재빌드로 **versionCode 5**가 되었다. 출시명·출시노트는 Claude가 갱신해 임시보관 저장까지 끝냈다.
+  **[2026-08-30] 지난 업로드가 실패했던 진짜 이유를 찾았다: 서명 키 불일치.** draft에 남아 있던
+  Play 오류는 "Android App Bundle이 잘못된 키로 서명되었습니다"였다. 즉 파일 크기 문제가 아니라
+  Play가 거부한 것이다. 이 PC에서 빌드한 AAB는 Play 기대 업로드 키 지문과 일치함을 확인했으므로
+  그대로 올리면 통과한다. 상세·자가진단 명령은 `docs/release/play-console-checklist.md` 2-2절.
+  Claude가 대신 못 올리는 건 업로드 도구의 10MB 한도 때문일 뿐이다(사용자 브라우저엔 그 제한 없음).
   이후 `다음 → 미리보기 및 확인 → 출시 시작`. 상세는 `docs/release/play-console-checklist.md` 2-1절.
-* [ ] **Play Console 스토어 스크린샷 5장 교체** — `2-home`→`5-card`→`6-interpretation`→`3-diary-cards`→`4-stats`. 각 1MB 안팎이라 자동 업로드 시도해 볼 것
+* [ ] **Play Console 스토어 스크린샷 5장 교체** — `2-home`→`5-card`→`6-interpretation`→`3-diary-cards`→`4-stats`. 5장 합계 4.6MB로 업로드 도구 한도(10MB) 안이라 **Claude가 대신 올릴 수 있다**. 현재 등록정보엔 구 스크린샷 **6장**이 올라가 있어 먼저 지워야 한다. 2026-08-30 사용자 결정: **AAB 업로드가 끝난 뒤에 진행**(출시를 막는 항목이 아님).
 * [ ] **테스터 12명 등록** — 현재 0명. 프로덕션 신청에 12명 × 14일 연속 실사용 필요
 * [ ] ~~사용자 수동 1건 — Play Console 비공개 테스트 업로드~~ (위 항목들로 분해): 앱 생성은 2026-07-17 완료. 남은 것은 스토어 등록정보 → 앱 콘텐츠(데이터 안전 답변표) → 비공개 테스트 트랙에 `app-release.aab` 업로드(**versionCode 4 / targetSdk 36 재빌드본**) → 테스터 12명 등록. 복붙용 치트시트 `docs/release/play-console-checklist.md`.
 * [ ] Render 플랜 `starter` 실제 적용(대시보드/Blueprint 재동기화, 결제 발생) — `render.yaml`은 이미 `plan: starter`지만 대시보드 미적용이라 **실서비스는 무료 플랜으로 돌고 있다**(2026-08-30 실측 콜드스타트 52.5초로 확인). 2026-08-30 사용자 판단으로 일단 무료 유지 + 앱 쪽 흡수를 택함. 테스터 12명×14일 실사용 구간에서 첫 실행 체감이 계속 문제되면 재검토할 것.
