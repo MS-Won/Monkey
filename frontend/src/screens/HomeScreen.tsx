@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { Spacing, Radius } from '../theme/spacing';
 import { loadUserProfile } from '../storage/userProfile';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import TextField from '../components/TextField';
-import Button from '../components/Button';
+import Icon from 'react-native-vector-icons/Ionicons';
 import Chip from '../components/Chip';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import HolographicButton from '../components/holo/HolographicButton';
@@ -98,18 +98,26 @@ export default function HomeScreen() {
             <Text style={styles.counterHint}>{lengthHint}</Text>
           </View>
 
+          {/* 해몽하기가 대표 버튼 — 정중앙에 두고, 음성 입력은 오른쪽 아이콘으로 보조.
+              왼쪽에 아이콘과 같은 폭의 빈 칸을 둬 해몽하기가 정확히 가운데 오게 한다. */}
           <View style={styles.buttonRow}>
-            <Button
-              label="음성 입력"
-              variant="secondary"
-              onPress={onPressVoice}
-              style={styles.flexBtn}
-            />
+            <View style={styles.sideSlot} />
             <HolographicButton
               label="해몽하기"
               onPress={onPressInterpretText}
-              style={styles.flexBtn}
+              shape="rounded"
+              style={styles.primaryBtn}
             />
+            <View style={styles.sideSlot}>
+              <Pressable
+                onPress={onPressVoice}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="음성으로 입력"
+                style={({ pressed }) => [styles.micBtn, pressed && styles.micPressed]}>
+                <Icon name="mic-outline" size={22} color={Colors.accentGold} />
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -179,11 +187,29 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    alignItems: 'center',
+    gap: Spacing.md,
     marginTop: 4,
   },
-  flexBtn: {
+  primaryBtn: {
     flex: 1,
+  },
+  sideSlot: {
+    width: 48,
+    alignItems: 'center',
+  },
+  micBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGold,
+    backgroundColor: Colors.backgroundElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micPressed: {
+    opacity: 0.6,
   },
   chipRow: {
     flexDirection: 'row',

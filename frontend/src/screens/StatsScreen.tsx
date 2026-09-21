@@ -7,22 +7,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
-import {LineChart} from 'react-native-chart-kit';
 import {useFocusEffect} from '@react-navigation/native';
 
 import {Colors} from '../theme/colors';
-import {Typography} from '../theme/typography';
 import {Spacing, Radius} from '../theme/spacing';
-import {getLineChartConfig} from '../theme/chartTheme';
 import {getDB} from '../database/initDB';
 import Card from '../components/Card';
+import BarChart, {BarDatum} from '../components/BarChart';
+import {buildPeriods, countByPeriod, ChartMode} from '../logic/statsPeriods';
 import Mascot from '../components/Mascot';
 import AuroraBackground from '../components/holo/AuroraBackground';
 import {resolveArchetypeCard, ArchetypeCard} from '../data/archetypeCards';
-
-const screenWidth = Dimensions.get('window').width;
 
 // 한글 받침 유무로 조사 선택 (예: '새벽'+은/는 → '새벽은')
 const hasFinalConsonant = (word: string) => {
@@ -42,14 +38,6 @@ type KeywordStat = {
   percent: number;
 };
 
-type ChartMode = 'week' | 'month';
-
-type PeriodItem = {
-  label: string;
-  startDate: Date;
-  endDate: Date;
-};
-
 const StatsScreen = () => {
   const [totalAllCount, setTotalAllCount] = useState(0);
   const [total30Count, setTotal30Count] = useState(0);
@@ -60,8 +48,7 @@ const StatsScreen = () => {
   const [keywordStats, setKeywordStats] = useState<KeywordStat[]>([]);
 
   const [chartMode, setChartMode] = useState<ChartMode>('week');
-  const [chartLabels, setChartLabels] = useState<string[]>([]);
-  const [chartData, setChartData] = useState<number[]>([]);
+  const [chartData, setChartData] = useState<BarDatum[]>([]);
 
   const [lottoPower, setLottoPower] = useState(0);
 
@@ -198,44 +185,32 @@ const StatsScreen = () => {
   const loadChartData = (mode: ChartMode) => {
     const db = getDB();
 
-    // ✅ 기간(주/월)별로 각각 쿼리하는 대신, 가장 오래된 기간부터 오늘까지의
-    // 일자별 카운트를 단일 쿼리로 가져온 뒤 각 기간 구간에 맞게 로컬에서 합산한다.
-    const periods = mode === 'week' ? buildRecentSixWeeks() : buildRecentSixMonths();
-    const labels = periods.map(item => item.label);
-    const earliestStart = periods[periods.length - 1].startDate;
-
+    // 칸 수는 첫 기록 시점에 따라 1~8칸. 날짜 묶기는 SQLite date()(UTC)가 아니라
+    // countByPeriod에서 로컬 시각으로 한다 — KST 새벽 기록이 전날로 새지 않게.
     db.transaction(tx => {
       tx.executeSql(
-        `
-        SELECT date(created_at) as day, COUNT(*) as count
-        FROM dream_diary
-        WHERE date(created_at) >= date(?)
-        GROUP BY day;
-        `,
-        [formatDateForSQLite(earliestStart)],
+        `SELECT created_at FROM dream_diary WHERE created_at IS NOT NULL ORDER BY created_at;`,
+        [],
         (_, result) => {
-          const dayCounts: {day: string; count: number}[] = [];
+          const createdAts: string[] = [];
           for (let i = 0; i < result.rows.length; i++) {
-            dayCounts.push(result.rows.item(i));
+            createdAts.push(result.rows.item(i).created_at);
           }
-
-          const data = periods.map(period => {
-            return dayCounts.reduce((sum, row) => {
-              const rowDate = new Date(`${row.day}T00:00:00`);
-              if (rowDate >= period.startDate && rowDate < period.endDate) {
-                return sum + row.count;
-              }
-              return sum;
-            }, 0);
-          });
-
-          setChartLabels(labels);
-          setChartData(data);
+          const first = createdAts.length > 0 ? new Date(createdAts[0]) : null;
+          const periods = buildPeriods(
+            mode,
+            first && !Number.isNaN(first.getTime()) ? first : null,
+            new Date(),
+          );
+          const counts = countByPeriod(periods, createdAts);
+          setChartData(
+            periods.map((p, i) => ({label: p.label, superscript: p.yearTag, value: counts[i]})),
+          );
         },
         (_, error) => {
           console.log('❌ 그래프 조회 실패:', error);
-          setChartLabels(labels);
-          setChartData(new Array(periods.length).fill(0));
+          const periods = buildPeriods(mode, null, new Date());
+          setChartData(periods.map(p => ({label: p.label, superscript: p.yearTag, value: 0})));
           return false;
         },
       );
@@ -293,12 +268,6 @@ const StatsScreen = () => {
     if (score >= 30) return '행운력 낮음';
     return '행운력 매우 낮음';
   };
-
-  const safeChartData = chartData.length > 0 ? chartData : [0, 0, 0, 0, 0, 0];
-  const safeChartLabels =
-    chartLabels.length > 0
-      ? chartLabels
-      : ['-', '-', '-', '-', '-', '-'];
 
   return (
     <View style={styles.screen}>
@@ -380,18 +349,9 @@ const StatsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <LineChart
-          data={{
-            labels: safeChartLabels,
-            datasets: [{data: safeChartData}],
-          }}
-          width={screenWidth-60}
-          height={230}
-          yAxisSuffix="회"
-          chartConfig={getLineChartConfig()}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chart}>
+          <BarChart data={chartData} />
+        </View>
       </Card>
 
       {/* 하단 3 */}
@@ -413,117 +373,6 @@ const StatsScreen = () => {
 };
 
 export default StatsScreen;
-
-/**
- * 날짜를 SQLite date 비교용 문자열로 변환
- * 예: 2026-05-16
- */
-const formatDateForSQLite = (date: Date) => {
-  return date.toISOString().slice(0, 10);
-};
-
-/**
- * 해당 날짜가 포함된 주의 월요일을 구함
- * 한국식 주간 계산을 위해 월요일 시작으로 통일
- */
-const getMonday = (date: Date) => {
-  const d = new Date(date);
-  const day = d.getDay();
-
-  // 일요일이면 이전 월요일로 이동
-  // 월요일이면 그대로
-  const diff = day === 0 ? -6 : 1 - day;
-
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-
-  return d;
-};
-
-/**
- * 목요일 기준 주차 라벨 계산
- *
- * 예:
- * 2026-05-16은 2026년 5월 2주
- */
-const getWeekLabelByThursdayRule = (date: Date): PeriodItem => {
-  const monday = getMonday(date);
-
-  // 해당 주의 목요일
-  const thursday = new Date(monday);
-  thursday.setDate(monday.getDate() + 3);
-
-  const year = thursday.getFullYear();
-  const month = thursday.getMonth();
-
-  // 해당 월 1일
-  const firstDayOfMonth = new Date(year, month, 1);
-
-  // 해당 월 1일이 포함된 주의 월요일
-  const firstMonday = getMonday(firstDayOfMonth);
-
-  // 첫 월요일 기준 목요일
-  const firstThursday = new Date(firstMonday);
-  firstThursday.setDate(firstMonday.getDate() + 3);
-
-  let baseMonday = firstMonday;
-
-  // 첫 목요일이 해당 월이 아니면 다음 주 월요일부터 1주차
-  if (firstThursday.getMonth() !== month) {
-    baseMonday = new Date(firstMonday);
-    baseMonday.setDate(firstMonday.getDate() + 7);
-  }
-
-  const diffMs = monday.getTime() - baseMonday.getTime();
-  const weekNumber = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
-
-  return {
-    label: `${month + 1}월 ${weekNumber}주`,
-    startDate: monday,
-    endDate: new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000),
-  };
-};
-
-/**
- * 현재 주 포함 최근 6주 생성
- * 순서: 현재 → 과거
- */
-const buildRecentSixWeeks = (): PeriodItem[] => {
-  const today = new Date();
-  const currentMonday = getMonday(today);
-  const weeks: PeriodItem[] = [];
-
-  for (let i = 0; i < 6; i++) {
-    const targetDate = new Date(currentMonday);
-    targetDate.setDate(currentMonday.getDate() - i * 7);
-
-    weeks.push(getWeekLabelByThursdayRule(targetDate));
-  }
-
-  return weeks;
-};
-
-/**
- * 현재 월 포함 최근 6개월 생성
- * 순서: 현재 → 과거
- */
-const buildRecentSixMonths = (): PeriodItem[] => {
-  const today = new Date();
-  const months: PeriodItem[] = [];
-
-  for (let i = 0; i < 6; i++) {
-    const startDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const endDate = new Date(today.getFullYear(), today.getMonth() - i + 1, 1);
-
-    months.push({
-      label: `${startDate.getFullYear()}년 ${startDate.getMonth() + 1}월`,
-      startDate,
-      endDate,
-    });
-  }
-
-  return months;
-};
 
 const styles = StyleSheet.create({
   screen: {
@@ -616,8 +465,7 @@ const styles = StyleSheet.create({
     color: Colors.accentPrimary,
   },
   chart: {
-    borderRadius: Radius.md,
-    marginTop: 4,
+    marginTop: 8,
   },
   lottoTitle: {
     color: Colors.textPrimary,

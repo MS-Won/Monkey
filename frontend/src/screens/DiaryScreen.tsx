@@ -74,6 +74,11 @@ export default function DiaryScreen() {
         <Text style={[Typography.caption, styles.cardLabel]}>
           {focusedItem ? focusedCardLabel : ' '}
         </Text>
+        {/* 카드만으로는 어떤 꿈이었는지 떠오르지 않아 원문 앞부분을 함께 보여준다.
+            3줄 높이를 항상 확보해 원문 길이에 따라 캐러셀이 들썩이지 않게 한다. */}
+        <Text style={styles.dreamPreview} numberOfLines={3}>
+          {focusedItem ? focusedItem.dream_text.replace(/\s+/g, ' ').trim() : ''}
+        </Text>
       </View>
 
       <View style={styles.carouselWrap}>
@@ -110,6 +115,14 @@ const styles = StyleSheet.create({
   cardLabel: {
     marginTop: 2,
     color: Colors.accentGold,
+  },
+  dreamPreview: {
+    ...Typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    height: 21 * 3,
+    marginTop: Spacing.sm,
+    color: Colors.textSecondary,
   },
   carouselWrap: {
     flex: 1,

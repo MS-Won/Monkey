@@ -14,18 +14,27 @@ import {
   View,
 } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { Colors, Typography, Radius, HoloGradient } from '../../theme';
+import { Typography, Radius, HoloGradient } from '../../theme';
 
 type Props = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** pill(기본) = 타원, rounded = 둥근 모서리 사각형 */
+  shape?: 'pill' | 'rounded';
 };
 
 let uid = 0;
 
-export default function HolographicButton({ label, onPress, disabled, style }: Props) {
+export default function HolographicButton({
+  label,
+  onPress,
+  disabled,
+  style,
+  shape = 'pill',
+}: Props) {
+  const radius = shape === 'rounded' ? Radius.lg : Radius.pill;
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [id] = useState(() => {
     uid += 1;
@@ -44,6 +53,7 @@ export default function HolographicButton({ label, onPress, disabled, style }: P
       onLayout={onLayout}
       style={({ pressed }) => [
         styles.btn,
+        { borderRadius: radius },
         { opacity: disabled ? 0.45 : pressed ? 0.9 : 1 },
         style,
       ]}>
@@ -61,8 +71,8 @@ export default function HolographicButton({ label, onPress, disabled, style }: P
             y="0"
             width={size.w}
             height={size.h}
-            rx={Radius.pill}
-            ry={Radius.pill}
+            rx={radius}
+            ry={radius}
             fill={`url(#${id})`}
           />
         </Svg>

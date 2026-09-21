@@ -121,7 +121,8 @@ function CarouselCard({
   onPress: () => void;
 }) {
   const animatedStyle = useAnimatedStyle(() => {
-    const offset = index - activeIndex.value - dragX.value / CARD_WIDTH;
+    // 손가락을 오른쪽으로 끌면(dragX>0) 카드도 오른쪽으로 — offset이 커져야 translateX가 +가 된다.
+    const offset = index - activeIndex.value + dragX.value / CARD_WIDTH;
     const translateX = offset * FAN_SPACING;
     const translateY = Math.abs(offset) * ARC_DROOP;
     const rotateZ = clamp(offset * 8, -24, 24);

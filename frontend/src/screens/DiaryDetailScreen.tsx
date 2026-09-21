@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {View, Text, StyleSheet, Alert} from 'react-native';
+import {View, Text, StyleSheet, Alert, ScrollView} from 'react-native';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 
 import {RootStackParamList} from '../../navigator';
@@ -74,6 +74,10 @@ const DiaryDetailScreen = () => {
     <View style={styles.screen}>
       <AuroraBackground intensity={0.45} />
       <BackButton />
+      {/* 카드 안쪽 ScrollView는 카드를 뒤집는 Pressable + 3D 회전 안에 있어 Android에서
+          스크롤 제스처를 못 받는다. 결과 화면과 같이 뒷면을 내용만큼 늘리고(growBack)
+          화면 전체를 스크롤한다. */}
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.content}>
       <Text style={Typography.h1}>꿈 기록</Text>
       <Text style={[Typography.caption, styles.topHint]}>{formatDate(row.created_at)}</Text>
 
@@ -83,6 +87,7 @@ const DiaryDetailScreen = () => {
           card={card}
           flipped={flipped}
           onToggleFlip={() => setFlipped(v => !v)}
+          growBack
           renderBack={() => (
             <>
               <Text style={styles.sectionTitle}>당신의 꿈</Text>
@@ -102,6 +107,7 @@ const DiaryDetailScreen = () => {
       </View>
 
       <Button label="이 기록 삭제" variant="danger" onPress={onDelete} style={styles.deleteBtn} />
+      </ScrollView>
     </View>
   );
 };
@@ -110,8 +116,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.backgroundPrimary,
+  },
+  scrollFlex: {
+    flex: 1,
+  },
+  content: {
     padding: Spacing.xl,
     paddingTop: 72,
+    paddingBottom: 28,
   },
   emptyContainer: {
     flex: 1,
