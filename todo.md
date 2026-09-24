@@ -53,7 +53,7 @@
 * [ ] Render 플랜 `starter` 실제 적용(대시보드/Blueprint 재동기화, 결제 발생) — `render.yaml`은 이미 `plan: starter`지만 대시보드 미적용이라 **실서비스는 무료 플랜으로 돌고 있다**(2026-08-30 실측 콜드스타트 52.5초로 확인). 2026-08-30 사용자 판단으로 일단 무료 유지 + 앱 쪽 흡수를 택함. 테스터 12명×14일 실사용 구간에서 첫 실행 체감이 계속 문제되면 재검토할 것.
 * [x] **[2026-08-25] targetSdk 36(Android 16) 상향 — Play 2026-11-01 요구사항 대응** — `compileSdk`/`targetSdk` 35→36, buildTools 36.0.0, `versionCode 4`/`versionName 1.2`. RN 0.79엔 `OnBackInvokedCallback` 구현이 없어 매니페스트에 `android:enableOnBackInvokedCallback="false"`(API 36에서도 유효한 옵트아웃, RN 0.81+ 올리면 제거). AGP 8.8.2용 `android.suppressUnsupportedCompileSdk=36`. 정적 검증 전항목 통과(매니페스트 targetSdk 36 / arm64 `.so` 12개 16KB 정렬 / `zipalign -P 16` OK / 번들에 Render주소·`/reading` O, localhost X). 빌드가 처음 깨진 건 targetSdk 탓이 아니라 **PC 프리즈로 `platforms/android-36/package.xml`이 널바이트로 손상**된 것이었고 `android-35`판에서 재구성해 복구. **⚠️ 에뮬 실기 검증 미완**(뒤로가기·인셋 2건) — 다음 세션.
 * [x] **Play 심사 결과 확인** — ✅ 2026-09-22 사용자 확인: 앱 발매 성공, 비공개 테스트 완료로 **프로덕션 액세스 권한 부여됨**. (이하 원래 기록) (2026-08-31 제출, 보통 7일 이내) — AAB versionCode 5와 스토어 스크린샷 5장 두 건이 검토 중. 통과하면 테스터 34명에게 자동 업데이트로 내려가며 서버 연결 오류가 해소된다. 거부되면 사유 확인 후 대응.
-* [ ] **AAB 크기 130MB 축소 검토** — 그중 **94MB가 카드 아트 30장**(장당 약 3MB). 테스터 다운로드 부담이 크고 Play 한도에도 여유가 적다. 표시 해상도로 리사이즈·재압축하면 크게 줄어든다. R8/proguard는 도움이 안 된다(코드가 아니라 이미지가 원인이며 현재 `enableProguardInReleaseBuilds = false`).
+* [x] **[2026-09-23] AAB 크기 130MB 축소** — 카드 아트 PNG→WebP q85로 50.3MB(커밋 `f006c00`, Play 신규 설치 36MB). 원래 메모: — 그중 **94MB가 카드 아트 30장**(장당 약 3MB). 테스터 다운로드 부담이 크고 Play 한도에도 여유가 적다. 표시 해상도로 리사이즈·재압축하면 크게 줄어든다. R8/proguard는 도움이 안 된다(코드가 아니라 이미지가 원인이며 현재 `enableProguardInReleaseBuilds = false`).
 * [ ] **`MainActivity`에 `configChanges` 없음** — 화면 회전 시 상태가 유실된다. 이전 세션부터 미결.
 * [ ] Internal testing
 * [ ] Fix critical bugs
@@ -69,8 +69,8 @@
 
 ## Production Release
 
-* [ ] **versionCode 6(1.3) 프로덕션 업로드** — AAB 빌드·검증 완료(2026-09-22, 업로드 키 지문 일치, 번들 Render 주소·신규 문자열 확인). 출시 노트 `docs/release/release-notes-v1.3.md`. Claude 자동화는 자동 모드 분류기가 "Production Deploy"로 차단해 중단 → 사용자가 직접 올리거나 자동 모드를 끄고 진행. 절차는 `docs/STATE.md` "진행 중이던 작업".
-* [ ] **`react-native-chart-kit` 제거** — 2026-09-21 막대그래프(`BarChart.tsx`)로 교체해 미사용. `npm uninstall` 후 tsc/jest + 릴리스 번들 확인.
+* [x] **[2026-09-24] versionCode 6(1.3) 프로덕션 검토 제출 완료** — 전체 출시 100%, 국가 대한민국만(초안의 177개국에서 수정). 심사 결과 대기. 원래 메모: — AAB 빌드·검증 완료(2026-09-22, 업로드 키 지문 일치, 번들 Render 주소·신규 문자열 확인). 출시 노트 `docs/release/release-notes-v1.3.md`. Claude 자동화는 자동 모드 분류기가 "Production Deploy"로 차단해 중단 → 사용자가 직접 올리거나 자동 모드를 끄고 진행. 절차는 `docs/STATE.md` "진행 중이던 작업".
+* [x] **[2026-09-23] `react-native-chart-kit` 제거** (`f006c00`, tsc/jest/릴리스 번들 확인) — 2026-09-21 막대그래프(`BarChart.tsx`)로 교체해 미사용. `npm uninstall` 후 tsc/jest + 릴리스 번들 확인.
 * [ ] Optimize performance
 * [ ] Prepare privacy policy
 * [ ] Prepare store assets
