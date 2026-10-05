@@ -17,11 +17,11 @@ $magenta = [System.Drawing.ColorTranslator]::FromHtml('#D98CFF')
 $teal    = [System.Drawing.ColorTranslator]::FromHtml('#123536')
 $ivory   = [System.Drawing.ColorTranslator]::FromHtml('#F3EFFB')
 
-$outDir = "D:\00 My Project\01 Monkey\docs\release\store-assets"
+$outDir = Join-Path $PSScriptRoot '..\docs\release\store-assets'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 # 앱 아이콘과 동일한 원숭이 점술가 일러스트. apply-monkey-icon.ps1과 같은 원본/크롭값을 쓴다.
-$iconSrc  = "D:\00 My Project\01 Monkey\docs\release\store-assets\icon.png"
+$iconSrc  = Join-Path $outDir 'icon.png'
 $iconOrig = [System.Drawing.Image]::FromFile($iconSrc)
 # 원본 icon.png 바깥의 흰 라운드 프레임을 잘라내는 비율(apply-monkey-icon.ps1과 동일해야 함).
 $SRC_CROP = 0.075
@@ -95,16 +95,16 @@ $mcx = $W * 0.20; $mcy = $H * 0.50
 Draw-Glow $fg $mcx $mcy ($H*0.42) $holo 90
 Draw-MonkeyIcon $fg $mcx $mcy $mSize
 # 텍스트 (우측)
-$titleFont = New-Object System.Drawing.Font('Georgia', 82, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+$titleFont = New-Object System.Drawing.Font('Malgun Gothic', 76, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
 $tagFont   = New-Object System.Drawing.Font('Malgun Gothic', 34, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
 $subFont   = New-Object System.Drawing.Font('Malgun Gothic', 24, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
 $ivoryBrush  = New-Object System.Drawing.SolidBrush($ivory)
 $holoBrush   = New-Object System.Drawing.SolidBrush($holo)
 $mutedBrush  = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(200, $holo.R, $holo.G, $holo.B))
 $tx = $W * 0.40
-$fg.DrawString('Monkey', $titleFont, $ivoryBrush, [single]$tx, [single]($H*0.30))
-$fg.DrawString('꿈을 풀다', $tagFont, $holoBrush, [single]($tx+4), [single]($H*0.52))
-$fg.DrawString('전통 해몽 · 꿈 일기 · 아르누보 카드', $subFont, $mutedBrush, [single]($tx+4), [single]($H*0.66))
+$fg.DrawString('몽키', $titleFont, $ivoryBrush, [single]$tx, [single]($H*0.30))
+$fg.DrawString('꿈해몽 · 꿈을 풀다', $tagFont, $holoBrush, [single]($tx+4), [single]($H*0.52))
+$fg.DrawString('전통 해몽 · 꿈풀이 · 꿈일기 · 아르누보 카드', $subFont, $mutedBrush, [single]($tx+4), [single]($H*0.66))
 $titleFont.Dispose(); $tagFont.Dispose(); $subFont.Dispose()
 $ivoryBrush.Dispose(); $holoBrush.Dispose(); $mutedBrush.Dispose()
 $fg.Dispose()

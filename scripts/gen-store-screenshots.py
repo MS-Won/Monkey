@@ -46,20 +46,20 @@ SHOTS = [
     {
         "out": "screenshot-2-home.png",
         "raw": "2-home.png",
-        "headline": ["긴 꿈도 통째로,", "장면마다 풀어드려요"],
-        "sub": "한 줄이든 열 줄이든 · 텍스트로도 음성으로도",
+        "headline": ["어젯밤 꿈,", "전통 해몽으로 풀어드려요"],
+        "sub": "긴 꿈도 통째로 · 텍스트로도 음성으로도",
     },
     {
         "out": "screenshot-3-diary-cards.png",
         "raw": "3-diary-cards.png",
-        "headline": ["꿈은 한 장의", "카드로 쌓입니다"],
+        "headline": ["꿈일기는 한 장의", "카드로 쌓입니다"],
         "sub": "넘겨보며 지난 꿈을 다시 만나요",
     },
     {
         "out": "screenshot-4-stats.png",
         "raw": "4-stats.png",
         "headline": ["내 꿈의 흐름을", "한눈에"],
-        "sub": "자주 등장한 상징과 그 뜻, 그리고 기록 추이",
+        "sub": "자주 나타난 꿈 상징과 그 뜻, 기록 추이",
     },
     {
         "out": "screenshot-5-card.png",
@@ -70,8 +70,8 @@ SHOTS = [
     {
         "out": "screenshot-6-interpretation.png",
         "raw": "6-interpretation.png",
-        "headline": ["종합 해몽부터", "오늘의 한마디까지"],
-        "sub": "관계 · 재물 · 직장까지 나눠서 읽어드려요",
+        "headline": ["태몽·길몽·꿈풀이까지", "나눠서 읽어드려요"],
+        "sub": "종합 해몽 · 관계 · 재물 · 직장 · 건강",
     },
 ]
 
