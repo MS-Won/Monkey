@@ -1841,3 +1841,22 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 - [ ] **Step 8: 반복 운영** — 이후 검수 → `build_site.py` → 커밋/푸시 → 사이트맵 재제출(구글은 자동 재크롤). 매주 `rank-log.md` 한 줄 기록.
+
+---
+
+## 진행 현황 (2026-10-05 중단 시점, 브랜치 `marketing/aso-seo`)
+
+| Task | 상태 | 커밋 |
+|---|---|---|
+| 1 스토어 문구 + rank-log | ✅ 완료·리뷰 통과 (Play Console 입력은 사용자 수동 남음) | 56c1163 |
+| 2 스크린샷 캡션·피처 그래픽 | ✅ 완료·리뷰 통과 (콘솔 업로드는 사용자 수동 남음) | 87f37eb |
+| 3 인앱 리뷰 판단 함수 | ✅ 완료·리뷰 통과 (Jest 6/6) | 95f8264 |
+| 4 인앱 리뷰 연동 + versionCode 5 | ⏸ 다음 시작점 | - |
+| 5~10 SEO 사이트 | 미착수 | - |
+| 11 공개 빌드·배포 | 원고 검수 후 별도 진행(main 머지 필요) | - |
+
+리뷰 Minor 메모(최종 리뷰 때 판단):
+- Task 1 커밋 트레일러가 `Claude Haiku 4.5`로 들어감(나머지는 Opus 5.5).
+- `scripts/gen-store-graphics.ps1:20` `$outDir`에 `..`가 정규화되지 않은 채 남음(동작엔 무관).
+- `docs/release/store-assets/raw/2-home.png` 원본 캡처에 영문 "MONKEY · 꿈을 풀다"·"MS님" 노출(이번 범위 밖).
+- `shouldRequestReview`: 잘못된 `now`/미래 시각 `lastRequestedAt` 케이스 미테스트(안전하게 false).
